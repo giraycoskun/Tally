@@ -72,6 +72,11 @@ Tally/
 3. Select a simulator or device
 4. Build and run (⌘+R)
 
+## References
+
+- [AltStore Docs](https://faq.altstore.io/)
+- [AltStore Source Docs](https://faq.altstore.io/developers/make-a-source)
+
 ## License
 
 MIT
