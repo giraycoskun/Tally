@@ -12,7 +12,6 @@ struct ContributionGridView: View {
     private let calendar = Calendar.current
     private let cellSize: CGFloat = 14
     private let spacing: CGFloat = 3
-    private let dayLabelWidth: CGFloat = 18
     
     init(habit: Habit, onDateTap: @escaping (Date) -> Void = { _ in }) {
         self.habit = habit
@@ -20,7 +19,7 @@ struct ContributionGridView: View {
     }
     
     private func weeksToShow(for width: CGFloat) -> Int {
-        let availableWidth = width - dayLabelWidth - 8
+        let availableWidth = width
         let cellWithSpacing = cellSize + spacing
         let weeks = Int(availableWidth / cellWithSpacing)
         return max(4, weeks)
@@ -28,135 +27,57 @@ struct ContributionGridView: View {
     
     private func dates(weeks: Int) -> [[Date]] {
         let today = calendar.startOfDay(for: Date())
-        let todayWeekday = calendar.component(.weekday, from: today)
+        let startOfThisWeek = startOfWeek(for: today)
         
-        var allDates: [Date] = []
-        let totalDays = weeks * 7 + todayWeekday - 1
-        
-        for dayOffset in (0..<totalDays).reversed() {
-            if let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) {
-                allDates.append(date)
-            }
+        guard let startDate = calendar.date(byAdding: .day, value: -(weeks - 1) * 7, to: startOfThisWeek) else {
+            return []
         }
         
         var weekColumns: [[Date]] = []
-        var currentWeek: [Date] = []
+        var currentDate = startDate
         
-        for date in allDates {
-            currentWeek.append(date)
-            if calendar.component(.weekday, from: date) == 7 {
-                weekColumns.append(currentWeek)
-                currentWeek = []
+        for _ in 0..<weeks {
+            var week: [Date] = []
+            for _ in 0..<7 {
+                week.append(currentDate)
+                currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
             }
-        }
-        
-        if !currentWeek.isEmpty {
-            weekColumns.append(currentWeek)
+            weekColumns.append(week)
         }
         
         return weekColumns
     }
     
-    private func monthLabels(for dateGrid: [[Date]]) -> [(String, Int)] {
-        var labels: [(String, Int)] = []
-        var lastMonth = -1
-        
-        for (weekIndex, week) in dateGrid.enumerated() {
-            if let firstDate = week.first {
-                let month = calendar.component(.month, from: firstDate)
-                if month != lastMonth {
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "MMM"
-                    labels.append((formatter.string(from: firstDate), weekIndex))
-                    lastMonth = month
-                }
-            }
-        }
-        
-        return labels
+    private func startOfWeek(for date: Date) -> Date {
+        let weekday = calendar.component(.weekday, from: date)
+        let shift = (weekday - calendar.firstWeekday + 7) % 7
+        return calendar.date(byAdding: .day, value: -shift, to: date)!
     }
     
     var body: some View {
         GeometryReader { geometry in
             let weeks = weeksToShow(for: geometry.size.width)
             let dateGrid = dates(weeks: weeks)
-            let labels = monthLabels(for: dateGrid)
             
-            VStack(alignment: .leading, spacing: 4) {
-                // Month labels
-                HStack(spacing: 0) {
-                    Color.clear.frame(width: dayLabelWidth)
-                    
-                    ForEach(0..<weeks + 1, id: \.self) { weekIndex in
-                        if let label = labels.first(where: { $0.1 == weekIndex }) {
-                            Text(label.0)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                                .frame(width: cellSize + spacing, alignment: .leading)
-                        } else {
-                            Color.clear
-                                .frame(width: cellSize + spacing)
-                        }
-                    }
-                    
-                    Spacer(minLength: 0)
-                }
-                
-                HStack(alignment: .top, spacing: 0) {
-                    // Day labels
+            HStack(spacing: spacing) {
+                ForEach(Array(dateGrid.enumerated()), id: \.offset) { _, week in
                     VStack(spacing: spacing) {
-                        ForEach(["", "M", "", "W", "", "F", ""], id: \.self) { day in
-                            Text(day)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                                .frame(width: dayLabelWidth, height: cellSize)
-                        }
-                    }
-                    
-                    // Grid
-                    HStack(spacing: spacing) {
-                        ForEach(Array(dateGrid.enumerated()), id: \.offset) { _, week in
-                            VStack(spacing: spacing) {
-                                ForEach(week, id: \.self) { date in
-                                    ContributionCell(
-                                        date: date,
-                                        isCompleted: habit.isCompletedOn(date: date),
-                                        color: habit.color,
-                                        size: cellSize
-                                    )
-                                    .onTapGesture {
-                                        onDateTap(date)
-                                    }
-                                }
+                        ForEach(week, id: \.self) { date in
+                            ContributionCell(
+                                date: date,
+                                isCompleted: habit.isCompletedOn(date: date),
+                                color: habit.color,
+                                size: cellSize
+                            )
+                            .onTapGesture {
+                                onDateTap(date)
                             }
                         }
                     }
-                    
-                    Spacer(minLength: 0)
                 }
-                
-                // Legend
-                HStack(spacing: 4) {
-                    Spacer()
-                    
-                    Text("Less")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(intensity == 0 ? AppTheme.mediumPurple : habit.color.opacity(intensity))
-                            .frame(width: cellSize, height: cellSize)
-                    }
-                    
-                    Text("More")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.top, 4)
             }
         }
-        .frame(height: 7 * cellSize + 6 * spacing + 40)
+        .frame(height: 7 * cellSize + 6 * spacing)
     }
 }
 

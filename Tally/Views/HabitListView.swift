@@ -51,6 +51,7 @@ struct HabitListView: View {
     private var habitList: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
+                Last7DaysSection(habits: habits)
                 TodaySection(habits: habits)
                 
                 ForEach(habits) { habit in
@@ -80,9 +81,6 @@ struct TodaySection: View {
                     Text("Today")
                         .font(.headline)
                         .foregroundColor(.white)
-                    Text(Date(), style: .date)
-                        .font(.caption)
-                        .foregroundColor(AppTheme.lightPurple)
                 }
                 
                 Spacer()
@@ -105,6 +103,110 @@ struct TodaySection: View {
         .padding()
         .background(AppTheme.mediumPurple)
         .cornerRadius(16)
+    }
+}
+
+struct Last7DaysSection: View {
+    let habits: [Habit]
+    private let calendar = Calendar.current
+    
+    private var last7Dates: [Date] {
+        let today = calendar.startOfDay(for: Date())
+        let dates = (0..<7).compactMap { offset in
+            calendar.date(byAdding: .day, value: -offset, to: today)
+        }
+        return dates.reversed()
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Last 7 Days")
+                .font(.headline)
+                .foregroundColor(.white)
+            
+            HStack(spacing: 12) {
+                ForEach(last7Dates, id: \.self) { date in
+                    DaySummaryView(
+                        date: date,
+                        completed: habits.filter { $0.isCompletedOn(date: date) }.count,
+                        total: habits.count
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(AppTheme.cardBackground)
+        .cornerRadius(16)
+    }
+}
+
+struct DaySummaryView: View {
+    let date: Date
+    let completed: Int
+    let total: Int
+    
+    private var ratio: Double {
+        guard total > 0 else { return 0 }
+        return Double(completed) / Double(total)
+    }
+    
+    private var circleColor: Color {
+        if total == 0 {
+            return AppTheme.lightPurple
+        }
+        return blend(from: AppTheme.surfaceBackground, to: .green, fraction: ratio)
+    }
+    
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(date.formatted(.dateTime.weekday(.narrow)))
+                .font(.caption2)
+                .foregroundColor(AppTheme.lightPurple)
+            
+            Text(date.formatted(.dateTime.day()))
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+            
+            ZStack {
+                Circle()
+                    .stroke(AppTheme.surfaceBackground.opacity(0.6), lineWidth: 2)
+                    .frame(width: 34, height: 34)
+                
+                Circle()
+                    .fill(circleColor)
+                    .frame(width: 28, height: 28)
+                
+            Text("\(completed)")
+                .font(.caption2)
+                .fontWeight(.bold)
+                .foregroundColor(circleColor)
+        }
+    }
+    .frame(maxWidth: .infinity)
+}
+    
+    private func blend(from: Color, to: Color, fraction: Double) -> Color {
+        let clamped = min(max(fraction, 0), 1)
+        let uiFrom = UIColor(from)
+        let uiTo = UIColor(to)
+        var fr: CGFloat = 0
+        var fg: CGFloat = 0
+        var fb: CGFloat = 0
+        var fa: CGFloat = 0
+        var tr: CGFloat = 0
+        var tg: CGFloat = 0
+        var tb: CGFloat = 0
+        var ta: CGFloat = 0
+        guard uiFrom.getRed(&fr, green: &fg, blue: &fb, alpha: &fa),
+              uiTo.getRed(&tr, green: &tg, blue: &tb, alpha: &ta) else {
+            return to
+        }
+        let r = fr + (tr - fr) * clamped
+        let g = fg + (tg - fg) * clamped
+        let b = fb + (tb - fb) * clamped
+        let a = fa + (ta - fa) * clamped
+        return Color(red: r, green: g, blue: b, opacity: a)
     }
 }
 

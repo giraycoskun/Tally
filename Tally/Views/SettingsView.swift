@@ -7,6 +7,7 @@ import SwiftUI
 import SwiftData
 
 struct SettingsView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query private var habits: [Habit]
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @State private var showingResetAlert = false
@@ -73,7 +74,9 @@ struct SettingsView: View {
             .alert("Reset All Data?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset", role: .destructive) {
-                    // Would need to implement actual reset
+                    habits.forEach { modelContext.delete($0) }
+                    try? modelContext.save()
+                    NotificationService.shared.cancelAllReminders()
                 }
             } message: {
                 Text("This will permanently delete all habits and their history. This action cannot be undone.")

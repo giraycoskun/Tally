@@ -88,6 +88,7 @@ struct HabitDetailView: View {
             Button {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                     habit.toggleCompletion(for: Date(), context: modelContext)
+                    try? modelContext.save()
                 }
             } label: {
                 HStack {
@@ -177,6 +178,7 @@ struct HabitDetailView: View {
                 if date <= Date() {
                     withAnimation {
                         habit.toggleCompletion(for: date, context: modelContext)
+                        try? modelContext.save()
                     }
                 }
             }

@@ -226,20 +226,21 @@ final class Habit {
         
         if frequency == .daily {
             let daysSinceCreation = calendar.dateComponents([.day], from: createdAt, to: Date()).day ?? 0
-            guard daysSinceCreation > 0 else { return 0 }
-            
+            let totalDays = max(0, daysSinceCreation) + 1
             let completedCount = entries.filter { $0.completed }.count
-            return Double(completedCount) / Double(daysSinceCreation + 1) * 100
+            let rate = Double(completedCount) / Double(totalDays) * 100
+            return min(rate, 100)
         } else {
             // For weekly habits, calculate based on weeks
             let weeksSinceCreation = calendar.dateComponents([.weekOfYear], from: createdAt, to: Date()).weekOfYear ?? 0
             guard weeksSinceCreation > 0 else {
-                return weeklyProgress * 100
+                return min(weeklyProgress * 100, 100)
             }
             
             let totalExpected = (weeksSinceCreation + 1) * targetPerWeek
             let completedCount = entries.filter { $0.completed }.count
-            return Double(completedCount) / Double(totalExpected) * 100
+            let rate = Double(completedCount) / Double(totalExpected) * 100
+            return min(rate, 100)
         }
     }
     
