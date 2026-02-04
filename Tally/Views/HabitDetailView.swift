@@ -22,6 +22,9 @@ struct HabitDetailView: View {
                 // Stats Cards
                 statsSection
                 
+                // Reminder Settings
+                reminderSection
+                
                 // Full Contribution Grid
                 gridSection
                 
@@ -185,6 +188,69 @@ struct HabitDetailView: View {
             .padding()
             .background(Color(.systemGray6))
             .cornerRadius(12)
+        }
+    }
+    
+    private var reminderSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Reminder")
+                .font(.headline)
+            
+            HStack(spacing: 12) {
+                Image(systemName: habit.reminderEnabled ? "alarm.fill" : "alarm")
+                    .foregroundColor(habit.reminderEnabled ? habit.color : .secondary)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    if habit.reminderEnabled {
+                        if habit.reminderType == .single {
+                            let times = sortedReminderTimes(habit.effectiveReminderTimes)
+                            if times.isEmpty {
+                                Text("No times set")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            } else if times.count == 1 {
+                                Text("Daily at \(formattedTime(times[0]))")
+                                    .font(.subheadline)
+                            } else {
+                                Text("Daily at \(times.map { formattedTime($0) }.joined(separator: ", "))")
+                                    .font(.subheadline)
+                            }
+                        } else {
+                            Text("Every \(habit.periodicIntervalHours) hour\(habit.periodicIntervalHours > 1 ? "s" : "")")
+                                .font(.subheadline)
+                            Text("\(formattedTime(habit.periodicStartTime))–\(formattedTime(habit.periodicEndTime))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } else {
+                        Text("Reminders Off")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+        }
+    }
+    
+    private func formattedTime(_ date: Date?) -> String {
+        guard let date else { return "--:--" }
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+    
+    private func sortedReminderTimes(_ times: [Date]) -> [Date] {
+        let calendar = Calendar.current
+        return times.sorted {
+            let lhs = calendar.dateComponents([.hour, .minute], from: $0)
+            let rhs = calendar.dateComponents([.hour, .minute], from: $1)
+            if lhs.hour == rhs.hour {
+                return (lhs.minute ?? 0) < (rhs.minute ?? 0)
+            }
+            return (lhs.hour ?? 0) < (rhs.hour ?? 0)
         }
     }
     

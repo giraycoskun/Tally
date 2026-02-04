@@ -36,6 +36,7 @@ final class Habit {
     var colorHex: String
     var createdAt: Date
     var reminderTime: Date?
+    var reminderTimes: [Date]
     var reminderEnabled: Bool
     var frequencyRaw: String
     var targetPerWeek: Int
@@ -64,6 +65,7 @@ final class Habit {
         icon: String = "checkmark.circle",
         colorHex: String = "#4CAF50",
         reminderTime: Date? = nil,
+        reminderTimes: [Date] = [],
         reminderEnabled: Bool = false,
         frequency: HabitFrequency = .daily,
         targetPerWeek: Int = 7,
@@ -78,6 +80,7 @@ final class Habit {
         self.colorHex = colorHex
         self.createdAt = Date()
         self.reminderTime = reminderTime
+        self.reminderTimes = reminderTimes
         self.reminderEnabled = reminderEnabled
         self.frequencyRaw = frequency.rawValue
         self.targetPerWeek = frequency == .daily ? 7 : targetPerWeek
@@ -89,6 +92,16 @@ final class Habit {
     
     var color: Color {
         Color(hex: colorHex) ?? .green
+    }
+
+    var effectiveReminderTimes: [Date] {
+        if !reminderTimes.isEmpty {
+            return reminderTimes
+        }
+        if let reminderTime {
+            return [reminderTime]
+        }
+        return []
     }
     
     var frequencyLabel: String {

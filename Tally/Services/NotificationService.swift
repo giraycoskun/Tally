@@ -32,32 +32,36 @@ class NotificationService {
         if habit.reminderType == .periodic {
             schedulePeriodicReminders(for: habit)
         } else {
-            scheduleSingleReminder(for: habit)
+            scheduleSingleReminders(for: habit)
         }
     }
     
-    private func scheduleSingleReminder(for habit: Habit) {
-        guard let reminderTime = habit.reminderTime else { return }
-        
-        let content = UNMutableNotificationContent()
-        content.title = "Time for \(habit.name)"
-        content.body = getSmartMessage(for: habit)
-        content.sound = .default
-        content.badge = 1
+    private func scheduleSingleReminders(for habit: Habit) {
+        let times = habit.effectiveReminderTimes
+        guard !times.isEmpty else { return }
         
         let calendar = Calendar.current
-        let components = calendar.dateComponents([.hour, .minute], from: reminderTime)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         
-        let request = UNNotificationRequest(
-            identifier: habit.id.uuidString,
-            content: content,
-            trigger: trigger
-        )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Failed to schedule notification: \(error)")
+        for (index, reminderTime) in times.enumerated() {
+            let content = UNMutableNotificationContent()
+            content.title = "Time for \(habit.name)"
+            content.body = getSmartMessage(for: habit)
+            content.sound = .default
+            content.badge = 1
+            
+            let components = calendar.dateComponents([.hour, .minute], from: reminderTime)
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+            
+            let request = UNNotificationRequest(
+                identifier: "\(habit.id.uuidString)-single-\(index)",
+                content: content,
+                trigger: trigger
+            )
+            
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("Failed to schedule notification: \(error)")
+                }
             }
         }
     }
@@ -108,8 +112,12 @@ class NotificationService {
     func cancelReminder(for habit: Habit) {
         let center = UNUserNotificationCenter.current()
         
-        // Cancel single reminder
-        center.removePendingNotificationRequests(withIdentifiers: [habit.id.uuidString])
+        // Cancel single reminders (including legacy single identifier)
+        var singleIds: [String] = [habit.id.uuidString]
+        for i in 0..<24 {
+            singleIds.append("\(habit.id.uuidString)-single-\(i)")
+        }
+        center.removePendingNotificationRequests(withIdentifiers: singleIds)
         
         // Cancel all periodic reminders (up to 12 possible per day)
         var periodicIds: [String] = []

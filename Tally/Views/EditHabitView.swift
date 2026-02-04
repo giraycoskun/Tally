@@ -17,7 +17,7 @@ struct EditHabitView: View {
     @State private var targetPerWeek: Int
     @State private var reminderEnabled: Bool
     @State private var reminderType: ReminderType
-    @State private var reminderTime: Date
+    @State private var reminderTimes: [Date]
     @State private var periodicStartTime: Date
     @State private var periodicEndTime: Date
     @State private var periodicIntervalHours: Int
@@ -45,7 +45,13 @@ struct EditHabitView: View {
         _targetPerWeek = State(initialValue: habit.targetPerWeek)
         _reminderEnabled = State(initialValue: habit.reminderEnabled)
         _reminderType = State(initialValue: habit.reminderType)
-        _reminderTime = State(initialValue: habit.reminderTime ?? Date())
+        if !habit.reminderTimes.isEmpty {
+            _reminderTimes = State(initialValue: habit.reminderTimes)
+        } else if let reminderTime = habit.reminderTime {
+            _reminderTimes = State(initialValue: [reminderTime])
+        } else {
+            _reminderTimes = State(initialValue: [Date()])
+        }
         _periodicStartTime = State(initialValue: habit.periodicStartTime ?? Calendar.current.date(from: DateComponents(hour: 8, minute: 0)) ?? Date())
         _periodicEndTime = State(initialValue: habit.periodicEndTime ?? Calendar.current.date(from: DateComponents(hour: 22, minute: 0)) ?? Date())
         _periodicIntervalHours = State(initialValue: habit.periodicIntervalHours)
@@ -87,7 +93,38 @@ struct EditHabitView: View {
                         .pickerStyle(.segmented)
                         
                         if reminderType == .single {
-                            DatePicker("Time", selection: $reminderTime, displayedComponents: .hourAndMinute)
+                            VStack(spacing: 8) {
+                                ForEach(reminderTimes.indices, id: \.self) { index in
+                                    HStack {
+                                        DatePicker(
+                                            "Time \(index + 1)",
+                                            selection: Binding(
+                                                get: { reminderTimes[index] },
+                                                set: { reminderTimes[index] = $0 }
+                                            ),
+                                            displayedComponents: .hourAndMinute
+                                        )
+                                        
+                                        Spacer()
+                                        
+                                        if reminderTimes.count > 1 {
+                                            Button(role: .destructive) {
+                                                reminderTimes.remove(at: index)
+                                            } label: {
+                                                Image(systemName: "minus.circle.fill")
+                                            }
+                                            .buttonStyle(.borderless)
+                                        }
+                                    }
+                                }
+                                
+                                Button {
+                                    reminderTimes.append(Date())
+                                } label: {
+                                    Label("Add Time", systemImage: "plus.circle.fill")
+                                }
+                                .buttonStyle(.borderless)
+                            }
                         } else {
                             DatePicker("From", selection: $periodicStartTime, displayedComponents: .hourAndMinute)
                             DatePicker("To", selection: $periodicEndTime, displayedComponents: .hourAndMinute)
@@ -171,7 +208,8 @@ struct EditHabitView: View {
         habit.targetPerWeek = frequency == .daily ? 7 : targetPerWeek
         habit.reminderEnabled = reminderEnabled
         habit.reminderType = reminderType
-        habit.reminderTime = reminderEnabled && reminderType == .single ? reminderTime : nil
+        habit.reminderTime = nil
+        habit.reminderTimes = reminderEnabled && reminderType == .single ? sortedReminderTimes(reminderTimes) : []
         habit.periodicStartTime = reminderEnabled && reminderType == .periodic ? periodicStartTime : nil
         habit.periodicEndTime = reminderEnabled && reminderType == .periodic ? periodicEndTime : nil
         habit.periodicIntervalHours = periodicIntervalHours
@@ -186,6 +224,18 @@ struct EditHabitView: View {
         }
         
         dismiss()
+    }
+    
+    private func sortedReminderTimes(_ times: [Date]) -> [Date] {
+        let calendar = Calendar.current
+        return times.sorted {
+            let lhs = calendar.dateComponents([.hour, .minute], from: $0)
+            let rhs = calendar.dateComponents([.hour, .minute], from: $1)
+            if lhs.hour == rhs.hour {
+                return (lhs.minute ?? 0) < (rhs.minute ?? 0)
+            }
+            return (lhs.hour ?? 0) < (rhs.hour ?? 0)
+        }
     }
 }
 
