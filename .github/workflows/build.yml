@@ -3,13 +3,16 @@ name: Build Unsigned IPA for AltStore
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,7 +32,7 @@ jobs:
 
       - name: Build app without code signing
         env:
-          SCHEME_NAME: Tally  # Replace with your actual scheme name
+          SCHEME_NAME: Tally # Replace with your actual scheme name
         run: |
           # Build the app without signing
           xcodebuild clean build \
@@ -46,15 +49,15 @@ jobs:
         run: |
           # Create Payload directory structure
           mkdir -p $RUNNER_TEMP/Payload
-          
+
           # Find and copy the .app bundle
           APP_PATH=$(find $RUNNER_TEMP/app.xcarchive/Products/Applications -name "*.app" -maxdepth 1)
           cp -r "$APP_PATH" $RUNNER_TEMP/Payload/
-          
+
           # Create IPA (which is just a renamed zip file)
           cd $RUNNER_TEMP
           zip -r app-unsigned.ipa Payload
-          
+
           # Verify IPA was created
           ls -lh app-unsigned.ipa
 
@@ -78,11 +81,11 @@ jobs:
           name: Release ${{ steps.version.outputs.version }}
           body: |
             ## 📱 Unsigned IPA for AltStore
-            
+
             This is an **unsigned IPA** that you can install using AltStore with your own Apple ID.
-            
+
             ### Installation Instructions
-            
+
             #### Option 1: Using AltStore (Recommended)
             1. **Download AltStore** on your iOS device if you haven't already
             2. **Download the IPA** file from the assets below
@@ -91,33 +94,29 @@ jobs:
             5. Select the downloaded IPA file
             6. **Sign in** with your Apple ID when prompted
             7. Wait for installation to complete
-            
+
             #### Option 2: Using Sideloadly
             1. Download **Sideloadly** from [sideloadly.io](https://sideloadly.io)
             2. Connect your iOS device to your computer
             3. Drag the IPA file into Sideloadly
             4. Enter your **Apple ID** credentials
             5. Click **Start** to begin sideloading
-            
+
             ### ⚠️ Important Notes
-            
+
             - Apps signed with a **free Apple account expire after 7 days**
             - You can have a maximum of **3 sideloaded apps** at once
             - Enable **Background Refresh** in AltStore settings to auto-refresh apps
             - Keep **AltServer running** on your computer (must be on same WiFi network)
-            
+
             ### 🔄 Auto-Refresh Setup (Recommended)
-            
+
             To avoid manually refreshing every 7 days:
             1. Install **AltServer** on your computer (Windows/Mac)
             2. Keep AltServer **running** while on the same WiFi as your device
             3. Enable **Background App Refresh** for AltStore in iOS Settings
             4. AltStore will automatically refresh apps before they expire
-            
-            ### 📝 What's New
-            - Add your release notes here
-            - List new features
-            - Bug fixes
+
           draft: false
           prerelease: false
           files: ${{ runner.temp }}/app-unsigned.ipa
