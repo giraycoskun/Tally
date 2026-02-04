@@ -12,9 +12,18 @@ struct HabitDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingEditSheet = false
     @State private var showingDeleteAlert = false
+    @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    
+    private var currentTheme: ThemeColor {
+        ThemeColor(rawValue: selectedThemeRaw) ?? .purple
+    }
     
     var body: some View {
-        ScrollView {
+        ZStack {
+            AppTheme.surfaceBackground
+                .ignoresSafeArea()
+            
+            ScrollView {
             VStack(spacing: 24) {
                 // Header
                 headerSection
@@ -33,8 +42,12 @@ struct HabitDetailView: View {
             }
             .padding()
         }
+        }
         .navigationTitle(habit.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarBackground(currentTheme.darkColor, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -82,10 +95,10 @@ struct HabitDetailView: View {
             
             Text(habit.frequencyLabel)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(AppTheme.lightPurple)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
-                .background(Color(.systemGray6))
+                .background(AppTheme.cardBackground)
                 .cornerRadius(8)
             
             Button {
@@ -116,17 +129,17 @@ struct HabitDetailView: View {
                     HStack {
                         Text("This Week")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(AppTheme.lightPurple)
                         Spacer()
                         Text("\(habit.completionsThisWeek)/\(habit.targetPerWeek)")
                             .font(.headline)
-                            .foregroundColor(habit.isWeeklyGoalMet ? .green : .primary)
+                            .foregroundColor(habit.isWeeklyGoalMet ? .green : .white)
                     }
                     
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(Color(.systemGray5))
+                                .fill(AppTheme.mediumPurple)
                             
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(habit.isWeeklyGoalMet ? Color.green : habit.color)
@@ -136,7 +149,7 @@ struct HabitDetailView: View {
                     .frame(height: 12)
                 }
                 .padding()
-                .background(Color(.systemGray6))
+                .background(AppTheme.cardBackground)
                 .cornerRadius(12)
             }
             
@@ -176,6 +189,7 @@ struct HabitDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Activity")
                 .font(.headline)
+                .foregroundColor(.white)
             
             ContributionGridView(habit: habit) { date in
                 if date <= Date() {
@@ -186,7 +200,7 @@ struct HabitDetailView: View {
                 }
             }
             .padding()
-            .background(Color(.systemGray6))
+            .background(AppTheme.cardBackground)
             .cornerRadius(12)
         }
     }
@@ -195,6 +209,7 @@ struct HabitDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Reminder")
                 .font(.headline)
+                .foregroundColor(.white)
             
             HStack(spacing: 12) {
                 Image(systemName: habit.reminderEnabled ? "alarm.fill" : "alarm")
@@ -232,7 +247,7 @@ struct HabitDetailView: View {
                 Spacer()
             }
             .padding()
-            .background(Color(.systemGray6))
+            .background(AppTheme.cardBackground)
             .cornerRadius(12)
         }
     }
@@ -258,6 +273,7 @@ struct HabitDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Recent Activity")
                 .font(.headline)
+                .foregroundColor(.white)
             
             let recentEntries = habit.entries
                 .filter { $0.completed }
@@ -266,10 +282,10 @@ struct HabitDetailView: View {
             
             if recentEntries.isEmpty {
                 Text("No completions yet")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(AppTheme.lightPurple)
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(Color(.systemGray6))
+                    .background(AppTheme.cardBackground)
                     .cornerRadius(12)
             } else {
                 VStack(spacing: 8) {
@@ -281,6 +297,7 @@ struct HabitDetailView: View {
                             
                             Text(entry.date, style: .date)
                                 .font(.subheadline)
+                                .foregroundColor(.white)
                             
                             Spacer()
                             
@@ -289,7 +306,7 @@ struct HabitDetailView: View {
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
-                        .background(Color(.systemGray6))
+                        .background(AppTheme.cardBackground)
                         .cornerRadius(8)
                     }
                 }
@@ -315,13 +332,14 @@ struct StatCard: View {
             Text(value)
                 .font(.title)
                 .fontWeight(.bold)
+                .foregroundColor(.white)
             
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(AppTheme.lightPurple)
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(AppTheme.cardBackground)
         .cornerRadius(12)
     }
 }

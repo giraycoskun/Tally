@@ -9,6 +9,11 @@ import Charts
 
 struct StatisticsView: View {
     @Query private var habits: [Habit]
+    @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    
+    private var currentTheme: ThemeColor {
+        ThemeColor(rawValue: selectedThemeRaw) ?? .purple
+    }
     
     private var totalCompletions: Int {
         habits.flatMap { $0.entries }.filter { $0.completed }.count
@@ -29,24 +34,34 @@ struct StatisticsView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Overview Cards
-                    overviewSection
-                    
-                    // Weekly Chart
-                    weeklyChartSection
-                    
-                    // Habit Rankings
-                    habitRankingsSection
-                    
-                    // Calendar Heatmap
-                    calendarSection
+            ZStack {
+                AppTheme.surfaceBackground
+                    .ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Overview Cards
+                        overviewSection
+                        
+                        // Weekly Chart
+                        weeklyChartSection
+                        
+                        // Habit Rankings
+                        habitRankingsSection
+                        
+                        // Calendar Heatmap
+                        calendarSection
+                    }
+                    .padding()
                 }
-                .padding()
             }
             .navigationTitle("Statistics")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(currentTheme.darkColor, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
+        .preferredColorScheme(.dark)
     }
     
     private var overviewSection: some View {
@@ -85,6 +100,7 @@ struct StatisticsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("This Week")
                 .font(.headline)
+                .foregroundColor(.white)
             
             Chart {
                 ForEach(weeklyData, id: \.day) { data in
@@ -98,7 +114,7 @@ struct StatisticsView: View {
             }
             .frame(height: 200)
             .padding()
-            .background(Color(.systemGray6))
+            .background(AppTheme.cardBackground)
             .cornerRadius(12)
         }
     }
@@ -124,13 +140,14 @@ struct StatisticsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Habit Rankings")
                 .font(.headline)
+                .foregroundColor(.white)
             
             if habits.isEmpty {
                 Text("No habits yet")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(AppTheme.lightPurple)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color(.systemGray6))
+                    .background(AppTheme.cardBackground)
                     .cornerRadius(12)
             } else {
                 VStack(spacing: 8) {
@@ -146,10 +163,11 @@ struct StatisticsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Overall Activity")
                 .font(.headline)
+                .foregroundColor(.white)
             
             OverallActivityGrid(habits: habits)
                 .padding()
-                .background(Color(.systemGray6))
+                .background(AppTheme.cardBackground)
                 .cornerRadius(12)
         }
     }
@@ -170,14 +188,15 @@ struct OverviewCard: View {
             Text(value)
                 .font(.title2)
                 .fontWeight(.bold)
+                .foregroundColor(.white)
             
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(AppTheme.lightPurple)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.systemGray6))
+        .background(AppTheme.cardBackground)
         .cornerRadius(12)
     }
 }
@@ -193,6 +212,7 @@ struct HabitRankRow: View {
             
             Text(habit.name)
                 .font(.subheadline)
+                .foregroundColor(.white)
             
             Spacer()
             
@@ -205,7 +225,7 @@ struct HabitRankRow: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(.systemGray5))
+                        .fill(AppTheme.mediumPurple)
                     
                     RoundedRectangle(cornerRadius: 4)
                         .fill(habit.color)
@@ -215,7 +235,7 @@ struct HabitRankRow: View {
             .frame(width: 60, height: 8)
         }
         .padding(12)
-        .background(Color(.systemGray6))
+        .background(AppTheme.cardBackground)
         .cornerRadius(8)
     }
     
@@ -276,17 +296,17 @@ struct OverallActivityGrid: View {
                     
                     Text("Less")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.lightPurple)
                     
                     ForEach([0.0, 0.25, 0.5, 0.75, 1.0], id: \.self) { intensity in
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(intensity == 0 ? Color(.systemGray5) : Color.green.opacity(intensity))
+                            .fill(intensity == 0 ? AppTheme.mediumPurple : Color.green.opacity(intensity))
                             .frame(width: cellSize, height: cellSize)
                     }
                     
                     Text("More")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.lightPurple)
                 }
                 .padding(.top, 4)
             }
@@ -296,12 +316,12 @@ struct OverallActivityGrid: View {
     
     private func cellColor(for date: Date) -> Color {
         if date > Date() {
-            return Color(.systemGray6)
+            return AppTheme.surfaceBackground
         }
         
         let intensity = completionIntensity(for: date)
         if intensity == 0 {
-            return Color(.systemGray5)
+            return AppTheme.mediumPurple
         }
         return Color.green.opacity(intensity)
     }

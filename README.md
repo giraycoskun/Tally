@@ -1,10 +1,8 @@
-
 <img
   src="Tally/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
   alt="Tally Logo"
   width="200"
   style="margin-bottom: 20px;">
-
 
 # Tally - Habit Tracker
 
@@ -12,7 +10,9 @@ Everyone has its own idea of a habit tracker and also because available apps lim
 
 A simple habit tracking app for iOS with GitHub-style contribution grids, analytics and reminders.
 
+It is free so no limitations on number of habits or entries. This was the most annoying part taht led me to develop a custom app for myself. I understand just keeping an app on AppStore costs so I understand the apps requiring subscription but it is just something very basic that I really couldn't justify to myself to pay for it regularly. It is basically a list with UI.
 
+And also this was my first time building an IOS app and I really understood the IOS developers' grievances on AppStore. I know AppStore wants to keep certain standards for security and quality but it should really leave room if I personally take risks and install unauthorized apps.
 
 ## Features
 
@@ -21,13 +21,18 @@ A simple habit tracking app for iOS with GitHub-style contribution grids, analyt
 - **Statistics Dashboard** - Track streaks, completion rates, and weekly progress with charts
 - **Reminders with Interval** - Reminders either simple daily or interval-based notifications
 
-It is free so no limitations on number of habits or entries.
-
 ## Screenshots
 
-*Coming soon*
+<p float="left">
+  <img src="https://images.giraycoskun.dev/ss-tally-home.png" width="150" />
+  <img src="https://images.giraycoskun.dev/ss-tally-home-2.png" width="150" />
+  <img src="https://images.giraycoskun.dev/ss-tally-stats.png" width="150" />
+  <img src="https://images.giraycoskun.dev/ss-tally-settings.png" width="150" />
+</p>
+
 
 ## Project Structure
+
 ```
 Tally/
 ├── TallyApp.swift                 # App entry point + ModelContainer
@@ -50,7 +55,6 @@ Tally/
 │   └── AppTheme.swift             # Matte purple color palette
 └── Assets.xcassets/               # App icons and colors
 ```
-
 
 ## Requirements
 

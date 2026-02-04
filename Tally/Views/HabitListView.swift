@@ -10,6 +10,11 @@ struct HabitListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @State private var showingAddHabit = false
+    @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    
+    private var currentTheme: ThemeColor {
+        ThemeColor(rawValue: selectedThemeRaw) ?? .purple
+    }
     
     var body: some View {
         NavigationStack {
@@ -28,7 +33,7 @@ struct HabitListView: View {
             .navigationTitle("Tally")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbarBackground(AppTheme.darkPurple, for: .navigationBar)
+            .toolbarBackground(currentTheme.darkColor, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -37,7 +42,7 @@ struct HabitListView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
-                            .foregroundColor(AppTheme.accentPurple)
+                            .foregroundColor(currentTheme.accentColor)
                     }
                 }
             }
@@ -69,6 +74,11 @@ struct HabitListView: View {
 struct TodaySection: View {
     let habits: [Habit]
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    
+    private var theme: ThemeColor {
+        ThemeColor(rawValue: selectedThemeRaw) ?? .purple
+    }
     
     private var completedToday: Int {
         habits.filter { $0.isCompletedOn(date: Date()) }.count
@@ -88,7 +98,7 @@ struct TodaySection: View {
                 Text("\(completedToday)/\(habits.count)")
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundColor(completedToday == habits.count ? .green : AppTheme.accentPurple)
+                    .foregroundColor(completedToday == habits.count ? .green : theme.accentColor)
             }
             
             // Quick complete buttons
@@ -101,14 +111,19 @@ struct TodaySection: View {
             }
         }
         .padding()
-        .background(AppTheme.mediumPurple)
+        .background(theme.mediumColor)
         .cornerRadius(16)
     }
 }
 
 struct Last7DaysSection: View {
     let habits: [Habit]
+    @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
     private let calendar = Calendar.current
+    
+    private var theme: ThemeColor {
+        ThemeColor(rawValue: selectedThemeRaw) ?? .purple
+    }
     
     private var last7Dates: [Date] {
         let today = calendar.startOfDay(for: Date())
@@ -135,7 +150,7 @@ struct Last7DaysSection: View {
             }
         }
         .padding()
-        .background(AppTheme.cardBackground)
+        .background(theme.cardBackground)
         .cornerRadius(16)
     }
 }
@@ -144,6 +159,11 @@ struct DaySummaryView: View {
     let date: Date
     let completed: Int
     let total: Int
+    @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    
+    private var theme: ThemeColor {
+        ThemeColor(rawValue: selectedThemeRaw) ?? .purple
+    }
     
     private var ratio: Double {
         guard total > 0 else { return 0 }
@@ -152,16 +172,16 @@ struct DaySummaryView: View {
     
     private var circleColor: Color {
         if total == 0 {
-            return AppTheme.lightPurple
+            return theme.lightColor
         }
-        return blend(from: AppTheme.surfaceBackground, to: .green, fraction: ratio)
+        return blend(from: theme.surfaceBackground, to: .green, fraction: ratio)
     }
     
     var body: some View {
         VStack(spacing: 6) {
             Text(date.formatted(.dateTime.weekday(.narrow)))
                 .font(.caption2)
-                .foregroundColor(AppTheme.lightPurple)
+                .foregroundColor(theme.lightColor)
             
             Text(date.formatted(.dateTime.day()))
                 .font(.caption)
@@ -170,7 +190,7 @@ struct DaySummaryView: View {
             
             ZStack {
                 Circle()
-                    .stroke(AppTheme.surfaceBackground.opacity(0.6), lineWidth: 2)
+                    .stroke(theme.surfaceBackground.opacity(0.6), lineWidth: 2)
                     .frame(width: 34, height: 34)
                 
                 Circle()
@@ -213,6 +233,11 @@ struct DaySummaryView: View {
 struct QuickCompleteButton: View {
     @Bindable var habit: Habit
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    
+    private var theme: ThemeColor {
+        ThemeColor(rawValue: selectedThemeRaw) ?? .purple
+    }
     
     private var isCompletedToday: Bool {
         habit.isCompletedOn(date: Date())
@@ -228,12 +253,12 @@ struct QuickCompleteButton: View {
             VStack(spacing: 4) {
                 ZStack {
                     Circle()
-                        .fill(isCompletedToday ? habit.color : AppTheme.cardBackground)
+                        .fill(isCompletedToday ? habit.color : theme.cardBackground)
                         .frame(width: 50, height: 50)
                     
                     Image(systemName: habit.icon)
                         .font(.title3)
-                        .foregroundColor(isCompletedToday ? .white : AppTheme.lightPurple)
+                        .foregroundColor(isCompletedToday ? .white : theme.lightColor)
                 }
                 
                 Text(habit.name)
@@ -249,6 +274,11 @@ struct QuickCompleteButton: View {
 struct HabitCardView: View {
     @Bindable var habit: Habit
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    
+    private var theme: ThemeColor {
+        ThemeColor(rawValue: selectedThemeRaw) ?? .purple
+    }
     
     private var isCompletedToday: Bool {
         habit.isCompletedOn(date: Date())
@@ -272,10 +302,10 @@ struct HabitCardView: View {
                         
                         Text(habit.frequencyLabel)
                             .font(.caption2)
-                            .foregroundColor(AppTheme.lightPurple)
+                            .foregroundColor(theme.lightColor)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(AppTheme.mediumPurple)
+                            .background(theme.mediumColor)
                             .cornerRadius(4)
                     }
                     
@@ -287,11 +317,11 @@ struct HabitCardView: View {
                         if habit.frequency == .weekly {
                             Label("\(habit.completionsThisWeek)/\(habit.targetPerWeek)", systemImage: "calendar.badge.checkmark")
                                 .font(.caption)
-                                .foregroundColor(habit.isWeeklyGoalMet ? .green : AppTheme.lightPurple)
+                                .foregroundColor(habit.isWeeklyGoalMet ? .green : theme.lightColor)
                         } else {
                             Label("\(Int(habit.completionRate))%", systemImage: "chart.pie.fill")
                                 .font(.caption)
-                                .foregroundColor(AppTheme.lightPurple)
+                                .foregroundColor(theme.lightColor)
                         }
                     }
                 }
@@ -306,7 +336,7 @@ struct HabitCardView: View {
                 } label: {
                     Image(systemName: isCompletedToday ? "checkmark.circle.fill" : "circle")
                         .font(.title)
-                        .foregroundColor(isCompletedToday ? habit.color : AppTheme.lightPurple)
+                        .foregroundColor(isCompletedToday ? habit.color : theme.lightColor)
                 }
             }
             
@@ -314,19 +344,24 @@ struct HabitCardView: View {
             ContributionGridView(habit: habit)
         }
         .padding()
-        .background(AppTheme.cardBackground)
+        .background(theme.cardBackground)
         .cornerRadius(16)
     }
 }
 
 struct EmptyHabitsView: View {
     @Binding var showingAddHabit: Bool
+    @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    
+    private var theme: ThemeColor {
+        ThemeColor(rawValue: selectedThemeRaw) ?? .purple
+    }
     
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "checkmark.circle.badge.plus")
                 .font(.system(size: 80))
-                .foregroundColor(AppTheme.primaryPurple)
+                .foregroundColor(theme.primaryColor)
             
             Text("Start Your Journey")
                 .font(.title2)
@@ -335,7 +370,7 @@ struct EmptyHabitsView: View {
             
             Text("Create your first habit and begin building\nbetter routines one day at a time.")
                 .multilineTextAlignment(.center)
-                .foregroundColor(AppTheme.lightPurple)
+                .foregroundColor(theme.lightColor)
             
             Button {
                 showingAddHabit = true
@@ -345,7 +380,7 @@ struct EmptyHabitsView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
-                    .background(AppTheme.primaryPurple)
+                    .background(theme.primaryColor)
                     .cornerRadius(12)
             }
         }
