@@ -9,7 +9,9 @@ import SwiftData
 struct MainTabView: View {
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
     @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
+    @Environment(\.scenePhase) private var scenePhase
     @State private var refreshId = UUID()
+    @State private var dayChangeTimer: Timer?
     
     private var currentTheme: ThemeColor {
         ThemeColor(rawValue: selectedThemeRaw) ?? .purple
@@ -36,6 +38,17 @@ struct MainTabView: View {
         .tint(currentTheme.accentColor)
         .onAppear {
             updateTabBarAppearance()
+            scheduleDayBoundaryRefresh()
+        }
+        .onDisappear {
+            dayChangeTimer?.invalidate()
+            dayChangeTimer = nil
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                refreshId = UUID()
+                scheduleDayBoundaryRefresh()
+            }
         }
         .onChange(of: selectedThemeRaw) { _, newValue in
             let theme = ThemeColor(rawValue: newValue) ?? .purple
@@ -47,6 +60,7 @@ struct MainTabView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 refreshId = UUID()
             }
+            scheduleDayBoundaryRefresh()
         }
     }
     
@@ -61,6 +75,28 @@ struct MainTabView: View {
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor(theme.accentColor)]
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+
+    private func scheduleDayBoundaryRefresh() {
+        dayChangeTimer?.invalidate()
+
+        let now = DateService.now()
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
+        components.hour = DateService.daySwitchHour
+        components.minute = 0
+        components.second = 0
+
+        guard var boundary = calendar.date(from: components) else { return }
+        if boundary <= now {
+            boundary = calendar.date(byAdding: .day, value: 1, to: boundary) ?? boundary
+        }
+
+        let interval = max(boundary.timeIntervalSince(now), 1)
+        dayChangeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { _ in
+            refreshId = UUID()
+            scheduleDayBoundaryRefresh()
+        }
     }
 }
 
