@@ -100,6 +100,10 @@ struct HabitDetailView: View {
                 .padding(.vertical, 4)
                 .background(AppTheme.cardBackground)
                 .cornerRadius(8)
+
+            Text("Created \(habit.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                .font(.caption)
+                .foregroundColor(AppTheme.lightPurple)
             
             Button {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
@@ -280,9 +284,11 @@ struct HabitDetailView: View {
             let recentEntries = habit.entries
                 .filter { $0.completed }
                 .sorted { $0.date > $1.date }
-                .prefix(7)
+                .prefix(6)
+            let activityItems: [(date: Date, isCreation: Bool)] =
+                [(habit.createdAt, true)] + recentEntries.map { ($0.date, false) }
             
-            if recentEntries.isEmpty {
+            if activityItems.isEmpty {
                 Text("No completions yet")
                     .foregroundColor(AppTheme.lightPurple)
                     .padding()
@@ -291,20 +297,32 @@ struct HabitDetailView: View {
                     .cornerRadius(12)
             } else {
                 VStack(spacing: 8) {
-                    ForEach(Array(recentEntries), id: \.id) { entry in
+                    ForEach(Array(activityItems.enumerated()), id: \.offset) { _, item in
                         HStack {
                             Circle()
-                                .fill(habit.color)
+                                .fill(item.isCreation ? AppTheme.lightPurple : habit.color)
                                 .frame(width: 8, height: 8)
                             
-                            Text(entry.date, style: .date)
-                                .font(.subheadline)
-                                .foregroundColor(.white)
+                            if item.isCreation {
+                                Text("Created")
+                                    .font(.subheadline)
+                                    .foregroundColor(AppTheme.lightPurple)
+                            } else {
+                                Text(item.date, style: .date)
+                                    .font(.subheadline)
+                                    .foregroundColor(.white)
+                            }
                             
                             Spacer()
                             
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
+                            if item.isCreation {
+                                Text(item.date.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.caption)
+                                    .foregroundColor(AppTheme.lightPurple)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
