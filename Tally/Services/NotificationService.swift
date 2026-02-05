@@ -149,7 +149,7 @@ class NotificationService {
     }
     
     private func getPeriodicMessage(for habit: Habit, isFirst: Bool) -> String {
-        if habit.isCompletedOn(date: Date()) {
+        if habit.isCompletedOn(date: DateService.now()) {
             return "Great job completing \(habit.name) today! 🎉"
         } else if isFirst {
             return "Start your day right! Time for \(habit.name)."

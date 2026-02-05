@@ -114,12 +114,15 @@ final class Habit {
     
     // Completions this week
     var completionsThisWeek: Int {
+        let dateService = DateService.shared
+        let effectiveToday = dateService.startOfEffectiveDay(for: DateService.now())
+        let weekStart = dateService.startOfEffectiveWeek(for: DateService.now())
         let calendar = Calendar.current
-        let now = Date()
-        let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
         
         return entries.filter { entry in
-            entry.completed && entry.date >= weekStart && entry.date <= now
+            guard entry.completed else { return false }
+            let entryDay = calendar.startOfDay(for: entry.date)
+            return entryDay >= weekStart && entryDay <= effectiveToday
         }.count
     }
     
@@ -135,11 +138,13 @@ final class Habit {
     
     var currentStreak: Int {
         let calendar = Calendar.current
+        let dateService = DateService.shared
         
         if frequency == .daily {
             var streak = 0
-            var currentDate = calendar.startOfDay(for: Date())
+            var currentDate = dateService.startOfEffectiveDay(for: DateService.now())
             
+            // Normalize entry dates to midnight for consistent comparison
             let sortedEntries = entries
                 .filter { $0.completed }
                 .map { calendar.startOfDay(for: $0.date) }
@@ -156,12 +161,14 @@ final class Habit {
         } else {
             // For weekly habits, count consecutive weeks where goal was met
             var streak = 0
-            var weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
+            var weekStart = dateService.startOfEffectiveWeek(for: DateService.now())
             
             while true {
                 let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart)!
                 let completionsInWeek = entries.filter { entry in
-                    entry.completed && entry.date >= weekStart && entry.date <= weekEnd
+                    guard entry.completed else { return false }
+                    let entryDay = calendar.startOfDay(for: entry.date)
+                    return entryDay >= weekStart && entryDay <= weekEnd
                 }.count
                 
                 if completionsInWeek >= targetPerWeek {
@@ -178,8 +185,10 @@ final class Habit {
     
     var longestStreak: Int {
         let calendar = Calendar.current
+        let dateService = DateService.shared
         
         if frequency == .daily {
+            // Normalize entry dates to midnight for consistent comparison
             let sortedDates = entries
                 .filter { $0.completed }
                 .map { calendar.startOfDay(for: $0.date) }
@@ -209,15 +218,17 @@ final class Habit {
             guard let firstDate = sortedDates.first else { return 0 }
             
             var weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: firstDate))!
-            let now = Date()
+            let effectiveToday = dateService.startOfEffectiveDay(for: DateService.now())
             
             var longest = 0
             var current = 0
             
-            while weekStart <= now {
+            while weekStart <= effectiveToday {
                 let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart)!
                 let completionsInWeek = entries.filter { entry in
-                    entry.completed && entry.date >= weekStart && entry.date <= weekEnd
+                    guard entry.completed else { return false }
+                    let entryDay = calendar.startOfDay(for: entry.date)
+                    return entryDay >= weekStart && entryDay <= weekEnd
                 }.count
                 
                 if completionsInWeek >= targetPerWeek {
@@ -238,14 +249,14 @@ final class Habit {
         let calendar = Calendar.current
         
         if frequency == .daily {
-            let daysSinceCreation = calendar.dateComponents([.day], from: createdAt, to: Date()).day ?? 0
+            let daysSinceCreation = calendar.dateComponents([.day], from: createdAt, to: DateService.now()).day ?? 0
             let totalDays = max(0, daysSinceCreation) + 1
             let completedCount = entries.filter { $0.completed }.count
             let rate = Double(completedCount) / Double(totalDays) * 100
             return min(rate, 100)
         } else {
             // For weekly habits, calculate based on weeks
-            let weeksSinceCreation = calendar.dateComponents([.weekOfYear], from: createdAt, to: Date()).weekOfYear ?? 0
+            let weeksSinceCreation = calendar.dateComponents([.weekOfYear], from: createdAt, to: DateService.now()).weekOfYear ?? 0
             guard weeksSinceCreation > 0 else {
                 return min(weeklyProgress * 100, 100)
             }
@@ -258,19 +269,35 @@ final class Habit {
     }
     
     func isCompletedOn(date: Date) -> Bool {
+        let dateService = DateService.shared
+        let effectiveDay = dateService.startOfEffectiveDay(for: date)
         let calendar = Calendar.current
+        let targetComponents = calendar.dateComponents([.year, .month, .day], from: effectiveDay)
+        
         return entries.contains { entry in
-            entry.completed && calendar.isDate(entry.date, inSameDayAs: date)
+            guard entry.completed else { return false }
+            let entryComponents = calendar.dateComponents([.year, .month, .day], from: entry.date)
+            return targetComponents.year == entryComponents.year &&
+                   targetComponents.month == entryComponents.month &&
+                   targetComponents.day == entryComponents.day
         }
     }
     
     func toggleCompletion(for date: Date, context: ModelContext) {
+        let dateService = DateService.shared
+        let effectiveDay = dateService.startOfEffectiveDay(for: date)
         let calendar = Calendar.current
+        let targetComponents = calendar.dateComponents([.year, .month, .day], from: effectiveDay)
         
-        if let existingEntry = entries.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
+        if let existingEntry = entries.first(where: { 
+            let entryComponents = calendar.dateComponents([.year, .month, .day], from: $0.date)
+            return targetComponents.year == entryComponents.year &&
+                   targetComponents.month == entryComponents.month &&
+                   targetComponents.day == entryComponents.day
+        }) {
             existingEntry.completed.toggle()
         } else {
-            let newEntry = HabitEntry(date: date, completed: true)
+            let newEntry = HabitEntry(date: effectiveDay, completed: true)
             newEntry.habit = self
             entries.append(newEntry)
             context.insert(newEntry)

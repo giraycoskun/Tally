@@ -8,7 +8,8 @@ import SwiftData
 
 struct MainTabView: View {
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
-    @State private var tabBarId = UUID()
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
+    @State private var refreshId = UUID()
     
     private var currentTheme: ThemeColor {
         ThemeColor(rawValue: selectedThemeRaw) ?? .purple
@@ -31,7 +32,7 @@ struct MainTabView: View {
                     Label("Settings", systemImage: "gear")
                 }
         }
-        .id(tabBarId)
+        .id(refreshId)
         .tint(currentTheme.accentColor)
         .onAppear {
             updateTabBarAppearance()
@@ -39,7 +40,13 @@ struct MainTabView: View {
         .onChange(of: selectedThemeRaw) { _, newValue in
             let theme = ThemeColor(rawValue: newValue) ?? .purple
             updateTabBarAppearance(for: theme)
-            tabBarId = UUID()
+            refreshId = UUID()
+        }
+        .onChange(of: daySwitchHour) { _, _ in
+            // Delay refresh slightly to ensure UserDefaults is fully synchronized
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                refreshId = UUID()
+            }
         }
     }
     

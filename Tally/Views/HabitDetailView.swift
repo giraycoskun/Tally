@@ -103,19 +103,20 @@ struct HabitDetailView: View {
             
             Button {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                    habit.toggleCompletion(for: Date(), context: modelContext)
+                    habit.toggleCompletion(for: DateService.now(), context: modelContext)
                     try? modelContext.save()
                 }
             } label: {
+                let isCompleted = habit.isCompletedOn(date: DateService.now())
                 HStack {
-                    Image(systemName: habit.isCompletedOn(date: Date()) ? "checkmark.circle.fill" : "circle")
-                    Text(habit.isCompletedOn(date: Date()) ? "Completed Today" : "Mark as Complete")
+                    Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                    Text(isCompleted ? "Completed Today" : "Mark as Complete")
                 }
                 .font(.headline)
                 .foregroundColor(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(habit.isCompletedOn(date: Date()) ? habit.color : Color.gray)
+                .background(isCompleted ? habit.color : Color.gray)
                 .cornerRadius(25)
             }
         }
@@ -192,7 +193,8 @@ struct HabitDetailView: View {
                 .foregroundColor(.white)
             
             ContributionGridView(habit: habit) { date in
-                if date <= Date() {
+                let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
+                if date <= today {
                     withAnimation {
                         habit.toggleCompletion(for: date, context: modelContext)
                         try? modelContext.save()

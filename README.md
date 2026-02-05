@@ -84,3 +84,7 @@ Tally/
 ## License
 
 MIT
+
+## Next Tasks/Bugs
+
+- [ ] Add x - times a day feature

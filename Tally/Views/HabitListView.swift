@@ -11,6 +11,7 @@ struct HabitListView: View {
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @State private var showingAddHabit = false
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     
     private var currentTheme: ThemeColor {
         ThemeColor(rawValue: selectedThemeRaw) ?? .purple
@@ -75,13 +76,16 @@ struct TodaySection: View {
     let habits: [Habit]
     @Environment(\.modelContext) private var modelContext
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     
     private var theme: ThemeColor {
         ThemeColor(rawValue: selectedThemeRaw) ?? .purple
     }
     
     private var completedToday: Int {
-        habits.filter { $0.isCompletedOn(date: Date()) }.count
+        // daySwitchHour dependency ensures recomputation when setting changes
+        let _ = daySwitchHour
+        return habits.filter { $0.isCompletedOn(date: DateService.now()) }.count
     }
     
     var body: some View {
@@ -119,6 +123,7 @@ struct TodaySection: View {
 struct Last7DaysSection: View {
     let habits: [Habit]
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     private let calendar = Calendar.current
     
     private var theme: ThemeColor {
@@ -126,7 +131,9 @@ struct Last7DaysSection: View {
     }
     
     private var last7Dates: [Date] {
-        let today = calendar.startOfDay(for: Date())
+        // daySwitchHour dependency ensures recomputation when setting changes
+        let _ = daySwitchHour
+        let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
         let dates = (0..<7).compactMap { offset in
             calendar.date(byAdding: .day, value: -offset, to: today)
         }
@@ -234,19 +241,21 @@ struct QuickCompleteButton: View {
     @Bindable var habit: Habit
     @Environment(\.modelContext) private var modelContext
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     
     private var theme: ThemeColor {
         ThemeColor(rawValue: selectedThemeRaw) ?? .purple
     }
     
     private var isCompletedToday: Bool {
-        habit.isCompletedOn(date: Date())
+        let _ = daySwitchHour
+        return habit.isCompletedOn(date: DateService.now())
     }
     
     var body: some View {
         Button {
             withAnimation(.spring(response: 0.3)) {
-                habit.toggleCompletion(for: Date(), context: modelContext)
+                habit.toggleCompletion(for: DateService.now(), context: modelContext)
                 try? modelContext.save()
             }
         } label: {
@@ -263,10 +272,11 @@ struct QuickCompleteButton: View {
                 
                 Text(habit.name)
                     .font(.caption2)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
                     .foregroundColor(.white)
             }
-            .frame(width: 60)
+            .frame(width: 70)
         }
     }
 }
@@ -275,13 +285,35 @@ struct HabitCardView: View {
     @Bindable var habit: Habit
     @Environment(\.modelContext) private var modelContext
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     
     private var theme: ThemeColor {
         ThemeColor(rawValue: selectedThemeRaw) ?? .purple
     }
     
     private var isCompletedToday: Bool {
-        habit.isCompletedOn(date: Date())
+        let _ = daySwitchHour
+        return habit.isCompletedOn(date: DateService.now())
+    }
+    
+    private var currentStreak: Int {
+        let _ = daySwitchHour
+        return habit.currentStreak
+    }
+    
+    private var completionsThisWeek: Int {
+        let _ = daySwitchHour
+        return habit.completionsThisWeek
+    }
+    
+    private var isWeeklyGoalMet: Bool {
+        let _ = daySwitchHour
+        return habit.isWeeklyGoalMet
+    }
+    
+    private var completionRate: Double {
+        let _ = daySwitchHour
+        return habit.completionRate
     }
     
     var body: some View {
@@ -310,16 +342,16 @@ struct HabitCardView: View {
                     }
                     
                     HStack(spacing: 12) {
-                        Label("\(habit.currentStreak)", systemImage: "flame.fill")
+                        Label("\(currentStreak)", systemImage: "flame.fill")
                             .font(.caption)
                             .foregroundColor(.orange)
                         
                         if habit.frequency == .weekly {
-                            Label("\(habit.completionsThisWeek)/\(habit.targetPerWeek)", systemImage: "calendar.badge.checkmark")
+                            Label("\(completionsThisWeek)/\(habit.targetPerWeek)", systemImage: "calendar.badge.checkmark")
                                 .font(.caption)
-                                .foregroundColor(habit.isWeeklyGoalMet ? .green : theme.lightColor)
+                                .foregroundColor(isWeeklyGoalMet ? .green : theme.lightColor)
                         } else {
-                            Label("\(Int(habit.completionRate))%", systemImage: "chart.pie.fill")
+                            Label("\(Int(completionRate))%", systemImage: "chart.pie.fill")
                                 .font(.caption)
                                 .foregroundColor(theme.lightColor)
                         }
@@ -330,7 +362,7 @@ struct HabitCardView: View {
                 
                 Button {
                     withAnimation {
-                        habit.toggleCompletion(for: Date(), context: modelContext)
+                        habit.toggleCompletion(for: DateService.now(), context: modelContext)
                         try? modelContext.save()
                     }
                 } label: {

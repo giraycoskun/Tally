@@ -8,6 +8,7 @@ import SwiftUI
 struct ContributionGridView: View {
     let habit: Habit
     let onDateTap: (Date) -> Void
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     
     private let calendar = Calendar.current
     private let cellSize: CGFloat = 14
@@ -26,7 +27,8 @@ struct ContributionGridView: View {
     }
     
     private func dates(weeks: Int) -> [[Date]] {
-        let today = calendar.startOfDay(for: Date())
+        let _ = daySwitchHour
+        let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
         let startOfThisWeek = startOfWeek(for: today)
         
         guard let startDate = calendar.date(byAdding: .day, value: -(weeks - 1) * 7, to: startOfThisWeek) else {
@@ -86,13 +88,16 @@ struct ContributionCell: View {
     let isCompleted: Bool
     let color: Color
     let size: CGFloat
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     
     private var isToday: Bool {
-        Calendar.current.isDateInToday(date)
+        let _ = daySwitchHour
+        return DateService.shared.isEffectivelyToday(date)
     }
     
     private var isFuture: Bool {
-        date > Date()
+        let _ = daySwitchHour
+        return date > DateService.shared.startOfEffectiveDay(for: DateService.now())
     }
     
     var body: some View {

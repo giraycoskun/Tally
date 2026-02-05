@@ -29,6 +29,7 @@ Tally/
 │   └── Components/
 │       └── ContributionGridView.swift  # GitHub-style contribution grid
 ├── Services/
+│   ├── DateService.swift          # Day boundary logic (configurable day switch hour)
 │   └── NotificationService.swift  # Reminder scheduling (single & periodic)
 └── Theme/
     └── AppTheme.swift          # Color palette (matte purple theme)
@@ -93,6 +94,7 @@ open Tally.xcodeproj
 2. **Notifications cleared on app open** - Badge reset, delivered notifications removed
 3. **Navigation bar** uses `.inline` display mode to prevent collapsing on scroll
 4. **Grid sizing** - Both ContributionGridView and OverallActivityGrid use GeometryReader for responsive width
+5. **Day boundary** - Configurable day switch hour (0-6 AM) in Settings. Use `DateService.shared` for all date calculations to respect this setting. Note: Midnight dates (hour=0, minute=0, second=0) are treated as "day markers" and won't be transformed again to avoid double-application bugs.
 
 ## Future Improvements
 - [ ] Widget support for quick completion

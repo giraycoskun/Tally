@@ -10,26 +10,31 @@ import Charts
 struct StatisticsView: View {
     @Query private var habits: [Habit]
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     
     private var currentTheme: ThemeColor {
         ThemeColor(rawValue: selectedThemeRaw) ?? .purple
     }
     
     private var totalCompletions: Int {
-        habits.flatMap { $0.entries }.filter { $0.completed }.count
+        let _ = daySwitchHour
+        return habits.flatMap { $0.entries }.filter { $0.completed }.count
     }
     
     private var averageCompletionRate: Double {
+        let _ = daySwitchHour
         guard !habits.isEmpty else { return 0 }
         return habits.reduce(0) { $0 + $1.completionRate } / Double(habits.count)
     }
     
     private var bestStreak: Int {
-        habits.map { $0.longestStreak }.max() ?? 0
+        let _ = daySwitchHour
+        return habits.map { $0.longestStreak }.max() ?? 0
     }
     
     private var habitsCompletedToday: Int {
-        habits.filter { $0.isCompletedOn(date: Date()) }.count
+        let _ = daySwitchHour
+        return habits.filter { $0.isCompletedOn(date: DateService.now()) }.count
     }
     
     var body: some View {
@@ -120,8 +125,9 @@ struct StatisticsView: View {
     }
     
     private var weeklyData: [(day: String, count: Int)] {
+        let _ = daySwitchHour
         let calendar = Calendar.current
-        let today = Date()
+        let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
         let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
         
         var data: [(day: String, count: Int)] = []
@@ -203,6 +209,12 @@ struct OverviewCard: View {
 
 struct HabitRankRow: View {
     let habit: Habit
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
+    
+    private var completionRate: Double {
+        let _ = daySwitchHour
+        return habit.completionRate
+    }
     
     var body: some View {
         HStack {
@@ -216,7 +228,7 @@ struct HabitRankRow: View {
             
             Spacer()
             
-            Text("\(Int(habit.completionRate))%")
+            Text("\(Int(completionRate))%")
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundColor(rateColor)
@@ -229,7 +241,7 @@ struct HabitRankRow: View {
                     
                     RoundedRectangle(cornerRadius: 4)
                         .fill(habit.color)
-                        .frame(width: geo.size.width * (habit.completionRate / 100))
+                        .frame(width: geo.size.width * (completionRate / 100))
                 }
             }
             .frame(width: 60, height: 8)
@@ -240,9 +252,9 @@ struct HabitRankRow: View {
     }
     
     private var rateColor: Color {
-        if habit.completionRate >= 70 {
+        if completionRate >= 70 {
             return .green
-        } else if habit.completionRate >= 40 {
+        } else if completionRate >= 40 {
             return .orange
         } else {
             return .red
@@ -252,12 +264,19 @@ struct HabitRankRow: View {
 
 struct OverallActivityGrid: View {
     let habits: [Habit]
+    @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     
     private let calendar = Calendar.current
     private let cellSize: CGFloat = 14
     private let spacing: CGFloat = 3
     
+    private var effectiveToday: Date {
+        let _ = daySwitchHour
+        return DateService.shared.startOfEffectiveDay(for: DateService.now())
+    }
+    
     private func completionIntensity(for date: Date) -> Double {
+        let _ = daySwitchHour
         guard !habits.isEmpty else { return 0 }
         let completed = habits.filter { $0.isCompletedOn(date: date) }.count
         return Double(completed) / Double(habits.count)
@@ -279,7 +298,7 @@ struct OverallActivityGrid: View {
                         VStack(spacing: spacing) {
                             ForEach(0..<7, id: \.self) { dayOffset in
                                 let totalDaysBack = (weeks - 1 - weekOffset) * 7 + (6 - dayOffset)
-                                let date = calendar.date(byAdding: .day, value: -totalDaysBack, to: Date())!
+                                let date = calendar.date(byAdding: .day, value: -totalDaysBack, to: effectiveToday)!
                                 
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(cellColor(for: date))
@@ -315,7 +334,7 @@ struct OverallActivityGrid: View {
     }
     
     private func cellColor(for date: Date) -> Color {
-        if date > Date() {
+        if date > effectiveToday {
             return AppTheme.surfaceBackground
         }
         
