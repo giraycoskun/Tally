@@ -173,7 +173,7 @@ struct MainTabView: View {
             completedDate = calendar.date(byAdding: .day, value: 1, to: completedDate) ?? completedDate
         }
 
-        let alternateDayStartDate = calendar.date(byAdding: .day, value: -360, to: today) ?? today
+        let alternateDayStartDate = calendar.date(byAdding: .day, value: -240, to: today) ?? today
         let alternateDayHabit = Habit(
             name: "Stretch",
             icon: "figure.cooldown",
