@@ -36,6 +36,57 @@ struct StatisticsView: View {
         let _ = daySwitchHour
         return habits.filter { $0.isCompletedOn(date: DateService.now()) }.count
     }
+
+    private var totalWeeklyTarget: Int {
+        let _ = daySwitchHour
+        return habits.reduce(0) { total, habit in
+            total + (habit.frequency == .daily ? 7 : habit.targetPerWeek)
+        }
+    }
+
+    private var weeklyCompletionsTotal: Int {
+        weeklyData.reduce(0) { $0 + $1.count }
+    }
+
+    private var weeklyGoalRatioText: String {
+        guard totalWeeklyTarget > 0 else { return "Ratio: --" }
+        let ratio = Double(weeklyCompletionsTotal) / Double(totalWeeklyTarget)
+        return String(format: "Ratio: %.0f%%", min(ratio, 1.0) * 100)
+    }
+
+    private var consistencyLast30Days: Double {
+        let _ = daySwitchHour
+        let calendar = Calendar.current
+        let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
+        var completedDays = 0
+        for offset in 0..<30 {
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
+            if habits.contains(where: { $0.isCompletedOn(date: date) }) {
+                completedDays += 1
+            }
+        }
+        return Double(completedDays) / 30.0
+    }
+
+    private var fourWeekAverageRatioText: String {
+        guard totalWeeklyTarget > 0 else { return "4W Avg: --" }
+        let calendar = Calendar.current
+        let startOfThisWeek = DateService.shared.startOfEffectiveWeek(for: DateService.now())
+        var ratios: [Double] = []
+        for weekOffset in 0..<4 {
+            guard let weekStart = calendar.date(byAdding: .day, value: -7 * weekOffset, to: startOfThisWeek) else { continue }
+            let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+            let completions = habits.flatMap { $0.entries }.filter { entry in
+                guard entry.completed else { return false }
+                let entryDay = calendar.startOfDay(for: entry.date)
+                return entryDay >= weekStart && entryDay <= weekEnd
+            }.count
+            ratios.append(Double(completions) / Double(totalWeeklyTarget))
+        }
+        guard !ratios.isEmpty else { return "4W Avg: --" }
+        let avg = ratios.reduce(0, +) / Double(ratios.count)
+        return String(format: "4W Avg: %.0f%%", min(avg, 1.0) * 100)
+    }
     
     var body: some View {
         NavigationStack {
@@ -93,10 +144,24 @@ struct StatisticsView: View {
             )
             
             OverviewCard(
+                title: "4W Avg",
+                value: fourWeekAverageRatioText.replacingOccurrences(of: "4W Avg: ", with: ""),
+                icon: "waveform.path.ecg",
+                color: .purple
+            )
+            
+            OverviewCard(
                 title: "Best Streak",
                 value: "\(bestStreak) days",
                 icon: "flame.fill",
                 color: .orange
+            )
+
+            OverviewCard(
+                title: "Consistency 30d",
+                value: "\(Int(consistencyLast30Days * 100))%",
+                icon: "chart.line.uptrend.xyaxis",
+                color: .teal
             )
         }
     }
@@ -106,40 +171,91 @@ struct StatisticsView: View {
             Text("This Week")
                 .font(.headline)
                 .foregroundColor(.white)
+
+            HStack(spacing: 8) {
+                Text("Goal: \(totalWeeklyTarget)x/week")
+                Text("•")
+                Text("Achieved: \(weeklyCompletionsTotal)/\(totalWeeklyTarget)")
+                Text("•")
+                Text(weeklyGoalRatioText)
+            }
+            .font(.caption)
+            .foregroundColor(AppTheme.lightPurple)
             
             Chart {
-                ForEach(weeklyData, id: \.day) { data in
-                    BarMark(
-                        x: .value("Day", data.day),
+                let targetPerDay = totalWeeklyTarget == 0 ? 0.0 : Double(totalWeeklyTarget) / 7.0
+
+                ForEach(weeklyData, id: \.date) { data in
+                    AreaMark(
+                        x: .value("Day", data.date),
                         y: .value("Completions", data.count)
                     )
-                    .foregroundStyle(Color.green.gradient)
-                    .cornerRadius(4)
+                    .foregroundStyle(Color.green.opacity(0.2))
+
+                    LineMark(
+                        x: .value("Day", data.date),
+                        y: .value("Completions", data.count)
+                    )
+                    .foregroundStyle(Color.green)
+                    .interpolationMethod(.linear)
+
+                    PointMark(
+                        x: .value("Day", data.date),
+                        y: .value("Completions", data.count)
+                    )
+                    .foregroundStyle(Color.green)
+                }
+
+                if totalWeeklyTarget > 0 {
+                    RuleMark(y: .value("Target", targetPerDay))
+                        .foregroundStyle(AppTheme.lightPurple)
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                        .annotation(position: .top, alignment: .leading) {
+                            Text("Goal")
+                                .font(.caption2)
+                                .foregroundColor(AppTheme.lightPurple)
+                        }
                 }
             }
             .frame(height: 200)
             .padding()
             .background(AppTheme.cardBackground)
             .cornerRadius(12)
+            .chartXAxis {
+                AxisMarks(values: weeklyData.map(\.date)) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let date = value.as(Date.self) {
+                            let weekdayIndex = Calendar.current.component(.weekday, from: date) - 1
+                            let label = (0..<weekdaysShort.count).contains(weekdayIndex) ? weekdaysShort[weekdayIndex] : ""
+                            Text(label)
+                        }
+                    }
+                }
+            }
         }
     }
     
-    private var weeklyData: [(day: String, count: Int)] {
+    private var weeklyData: [(date: Date, label: String, count: Int)] {
         let _ = daySwitchHour
         let calendar = Calendar.current
         let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
-        let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let weekdays = weekdaysShort
         
-        var data: [(day: String, count: Int)] = []
+        var data: [(date: Date, label: String, count: Int)] = []
         
         for dayOffset in (0..<7).reversed() {
             guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
             let weekdayIndex = calendar.component(.weekday, from: date) - 1
             let completions = habits.filter { $0.isCompletedOn(date: date) }.count
-            data.append((day: weekdays[weekdayIndex], count: completions))
+            data.append((date: date, label: weekdays[weekdayIndex], count: completions))
         }
         
         return data
+    }
+
+    private var weekdaysShort: [String] {
+        ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     }
     
     private var habitRankingsSection: some View {

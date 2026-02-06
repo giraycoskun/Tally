@@ -7,6 +7,7 @@ import SwiftUI
 import SwiftData
 
 struct MainTabView: View {
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
     @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     @Environment(\.scenePhase) private var scenePhase
@@ -39,6 +40,9 @@ struct MainTabView: View {
         .onAppear {
             updateTabBarAppearance()
             scheduleDayBoundaryRefresh()
+        }
+        .task {
+            seedSampleDataIfNeeded()
         }
         .onDisappear {
             dayChangeTimer?.invalidate()
@@ -97,6 +101,60 @@ struct MainTabView: View {
             refreshId = UUID()
             scheduleDayBoundaryRefresh()
         }
+    }
+
+    private func seedSampleDataIfNeeded() {
+#if DEBUG
+        let defaults = UserDefaults.standard
+        let seedKey = "seededSampleData_v1"
+        guard !defaults.bool(forKey: seedKey) else { return }
+
+        let descriptor = FetchDescriptor<Habit>()
+        if let existing = try? modelContext.fetch(descriptor), !existing.isEmpty {
+            defaults.set(true, forKey: seedKey)
+            return
+        }
+
+        let calendar = Calendar.current
+        let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
+        let startDate = calendar.date(byAdding: .day, value: -59, to: today) ?? today
+
+        let samples: [(name: String, icon: String, colorHex: String, frequency: HabitFrequency, target: Int)] = [
+            ("Hydrate", "drop.fill", "#4FC3F7", .daily, 7),
+            ("Workout", "figure.run", "#FF7043", .weekly, 4),
+            ("Read", "book.fill", "#BA68C8", .daily, 7),
+            ("Listen", "music.note", "#3F51B5", .weekly, 2)
+        ]
+
+        for (index, sample) in samples.enumerated() {
+            let habit = Habit(
+                name: sample.name,
+                icon: sample.icon,
+                colorHex: sample.colorHex,
+                reminderEnabled: false,
+                frequency: sample.frequency,
+                targetPerWeek: sample.target
+            )
+            habit.createdAt = calendar.date(byAdding: .day, value: index, to: startDate) ?? startDate
+            modelContext.insert(habit)
+
+            var date = habit.createdAt
+            while date <= today {
+                let dayIndex = calendar.dateComponents([.day], from: startDate, to: date).day ?? 0
+                let shouldComplete = ((dayIndex + index) % 3) != 0
+                if shouldComplete {
+                    let entry = HabitEntry(date: date, completed: true)
+                    entry.habit = habit
+                    habit.entries.append(entry)
+                    modelContext.insert(entry)
+                }
+                date = calendar.date(byAdding: .day, value: 1, to: date) ?? date
+            }
+        }
+
+        try? modelContext.save()
+        defaults.set(true, forKey: seedKey)
+#endif
     }
 }
 
