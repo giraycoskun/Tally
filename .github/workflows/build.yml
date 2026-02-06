@@ -86,7 +86,7 @@ jobs:
 
             ### Installation Instructions
 
-            #### Option 1: Using AltStore (Recommended)
+            #### Option 1: Using AltStore
             1. **Download AltStore** on your iOS device if you haven't already
             2. **Download the IPA** file from the assets below
             3. Open **AltStore** on your device
@@ -95,12 +95,11 @@ jobs:
             6. **Sign in** with your Apple ID when prompted
             7. Wait for installation to complete
 
-            #### Option 2: Using Sideloadly
-            1. Download **Sideloadly** from [sideloadly.io](https://sideloadly.io)
-            2. Connect your iOS device to your computer
-            3. Drag the IPA file into Sideloadly
-            4. Enter your **Apple ID** credentials
-            5. Click **Start** to begin sideloading
+            #### Option 2: Self-Build
+            1. Clone the repository and check out the desired tag
+            2. Open the Xcode project and select the appropriate scheme
+            3. Connect your iOS device and select it as the build target
+            4. Build and run the app on your device (Xcode will handle signing with your Apple ID)
 
             ### ⚠️ Important Notes
 
@@ -109,7 +108,7 @@ jobs:
             - Enable **Background Refresh** in AltStore settings to auto-refresh apps
             - Keep **AltServer running** on your computer (must be on same WiFi network)
 
-            ### 🔄 Auto-Refresh Setup (Recommended)
+            ### 🔄 Auto-Refresh Setup
 
             To avoid manually refreshing every 7 days:
             1. Install **AltServer** on your computer (Windows/Mac)
