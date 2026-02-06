@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import Charts
 
 struct HabitDetailView: View {
     @Bindable var habit: Habit
@@ -30,6 +31,9 @@ struct HabitDetailView: View {
                 
                 // Stats Cards
                 statsSection
+
+                // Behavior Curve
+                behaviorCurveSection
                 
                 // Reminder Settings
                 reminderSection
@@ -186,8 +190,330 @@ struct HabitDetailView: View {
                     icon: "checkmark.seal.fill",
                     color: .green
                 )
+
+                StatCard(
+                    title: "Last 7 Days",
+                    value: "\(last7DaysCompletions)/\(last7DaysExpected)",
+                    icon: "calendar.badge.checkmark",
+                    color: habit.color
+                )
+                
+                StatCard(
+                    title: "Last 4 Weeks",
+                    value: "\(last4WeeksCompletions)/\(last4WeeksExpected)",
+                    icon: "calendar",
+                    color: habit.color
+                )
             }
         }
+    }
+
+    private var behaviorCurveSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Behavior Curve")
+                .font(.headline)
+                .foregroundColor(.white)
+
+            HStack {
+                Text("Forming")
+                Spacer()
+                Text("Strengthening")
+                Spacer()
+                Text("Automatic")
+            }
+            .font(.caption2)
+            .foregroundColor(AppTheme.lightPurple)
+
+            let actualHistory = actualStrengthHistory()
+            let currentStrength = actualHistory.last?.strength ?? 0
+            
+            // Always show at least 100 days on x-axis
+            let minDisplayDays = 100
+            let startDay = max(0, daysSinceCreated - minDisplayDays)
+            let endDay = max(startDay + minDisplayDays, daysSinceCreated + 14)
+            
+            // Filter history to last 100 days
+            let visibleHistory = actualHistory.filter { $0.day >= startDay }
+            
+            // Ideal curve starts from the visible range's start point (day 0 of visible = 0 strength)
+            let idealCurveFromStart = stride(from: startDay, through: endDay, by: 1).map { day in
+                CurvePoint(day: day, strength: asymptoticStrength(day: day - startDay))
+            }
+            
+            // 66-day marker relative to visible start
+            let marker66Day = startDay + 66
+            
+            Chart {
+                // Ideal curve (faded, for reference) - starts at 0 from visible range
+                ForEach(idealCurveFromStart, id: \.day) { point in
+                    LineMark(
+                        x: .value("Day", point.day),
+                        y: .value("Ideal", point.strength),
+                        series: .value("Series", "Ideal")
+                    )
+                    .foregroundStyle(AppTheme.lightPurple.opacity(0.3))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                }
+                
+                // Actual strength history (main curve)
+                ForEach(visibleHistory, id: \.day) { point in
+                    LineMark(
+                        x: .value("Day", point.day),
+                        y: .value("Strength", point.strength),
+                        series: .value("Series", "Actual")
+                    )
+                    .foregroundStyle(habit.color)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5))
+                }
+                
+                // Projected future (dashed)
+                ForEach(projectedStrengthPoints(from: currentStrength, startDay: daysSinceCreated, maxDays: endDay), id: \.day) { point in
+                    LineMark(
+                        x: .value("Day", point.day),
+                        y: .value("Projected", point.strength),
+                        series: .value("Series", "Projected")
+                    )
+                    .foregroundStyle(habit.color.opacity(0.5))
+                    .lineStyle(StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                }
+
+                // Current position marker
+                PointMark(
+                    x: .value("Day", daysSinceCreated),
+                    y: .value("Current", currentStrength)
+                )
+                .foregroundStyle(Color.white)
+                .symbolSize(100)
+                
+                // 66-day milestone marker (relative to visible start)
+                if marker66Day <= endDay {
+                    RuleMark(x: .value("66 Days", marker66Day))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                        .foregroundStyle(AppTheme.lightPurple.opacity(0.4))
+                        .annotation(position: .top, alignment: .center) {
+                            Text("66d")
+                                .font(.caption2)
+                                .foregroundColor(AppTheme.lightPurple)
+                        }
+                }
+            }
+            .chartXScale(domain: startDay...endDay)
+            .chartYScale(domain: 0...1.05)
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 5)) { value in
+                    AxisGridLine()
+                    AxisValueLabel()
+                }
+            }
+            .chartYAxis {
+                AxisMarks(values: [0, 0.5, 1.0]) { value in
+                    AxisGridLine()
+                    if let v = value.as(Double.self) {
+                        AxisValueLabel {
+                            Text("\(Int(v * 100))%")
+                                .font(.caption2)
+                        }
+                    }
+                }
+            }
+            .frame(height: 200)
+            .padding()
+            .background(AppTheme.cardBackground)
+            .cornerRadius(12)
+            
+            // Strength indicator
+            HStack {
+                Text("Current Strength:")
+                    .font(.caption)
+                    .foregroundColor(AppTheme.lightPurple)
+                Text("\(Int(currentStrength * 100))%")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(strengthColor(currentStrength))
+                Spacer()
+                if currentStrength < 0.5 {
+                    Text("Keep going!")
+                        .font(.caption2)
+                        .foregroundColor(AppTheme.lightPurple)
+                } else if currentStrength < 0.8 {
+                    Text("Building momentum")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                } else {
+                    Text("Almost automatic!")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                }
+            }
+        }
+    }
+    
+    private func strengthColor(_ strength: Double) -> Color {
+        if strength < 0.33 { return .red }
+        if strength < 0.66 { return .orange }
+        return .green
+    }
+    
+    private struct CurvePoint: Identifiable {
+        let id = UUID()
+        let day: Int
+        let strength: Double
+    }
+    
+    /// Calculates actual habit strength history based on completions
+    /// - Daily habits: Each completion increases strength, each missed day decreases it
+    /// - Weekly habits: Strength changes based on meeting weekly targets
+    private func actualStrengthHistory() -> [CurvePoint] {
+        let calendar = Calendar.current
+        let creationDay = DateService.shared.startOfEffectiveDay(for: habit.createdAt)
+        let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
+        
+        guard let totalDays = calendar.dateComponents([.day], from: creationDay, to: today).day,
+              totalDays >= 0 else {
+            return [CurvePoint(day: 0, strength: 0)]
+        }
+        
+        // Build set of completed days (as day index from creation)
+        var completedDays = Set<Int>()
+        for entry in habit.entries where entry.completed {
+            let entryDay = calendar.startOfDay(for: entry.date)
+            if let dayIndex = calendar.dateComponents([.day], from: creationDay, to: entryDay).day,
+               dayIndex >= 0 {
+                completedDays.insert(dayIndex)
+            }
+        }
+        
+        var points: [CurvePoint] = []
+        var strength: Double = 0
+        
+        if habit.frequency == .daily {
+            // Daily habit: evaluate each day
+            let maxStrength: Double = 1.0
+            let gainRate: Double = 0.045  // ~66 days to reach 95% with perfect consistency
+            let baseDecayRate: Double = 0.08
+            
+            for day in 0...totalDays {
+                if completedDays.contains(day) {
+                    let gain = gainRate * (maxStrength - strength)
+                    strength = min(strength + gain, maxStrength)
+                } else if day > 0 {
+                    let decayMultiplier = 1.0 - (strength * 0.7)
+                    let decay = baseDecayRate * decayMultiplier
+                    strength = max(strength - decay, 0)
+                }
+                points.append(CurvePoint(day: day, strength: strength))
+            }
+        } else {
+            // Weekly habit: evaluate by week
+            let targetPerWeek = habit.targetPerWeek
+            let maxStrength: Double = 1.0
+            let gainRate: Double = 0.12  // Faster gain per successful week (~12 weeks to plateau)
+            let baseDecayRate: Double = 0.15  // Larger decay for missed week
+            
+            var currentWeek = 0
+            var completionsThisWeek = 0
+            var weekStartDay = 0
+            
+            for day in 0...totalDays {
+                let weekIndex = day / 7
+                
+                // New week started
+                if weekIndex > currentWeek {
+                    // Evaluate previous week
+                    let metTarget = completionsThisWeek >= targetPerWeek
+                    if metTarget {
+                        let gain = gainRate * (maxStrength - strength)
+                        strength = min(strength + gain, maxStrength)
+                    } else if currentWeek > 0 {
+                        // Partial credit: reduce decay based on how close to target
+                        let completionRatio = Double(completionsThisWeek) / Double(targetPerWeek)
+                        let decayMultiplier = (1.0 - completionRatio) * (1.0 - strength * 0.5)
+                        let decay = baseDecayRate * decayMultiplier
+                        strength = max(strength - decay, 0)
+                    }
+                    
+                    // Fill in points for the previous week
+                    for d in weekStartDay..<day {
+                        points.append(CurvePoint(day: d, strength: strength))
+                    }
+                    
+                    currentWeek = weekIndex
+                    completionsThisWeek = 0
+                    weekStartDay = day
+                }
+                
+                if completedDays.contains(day) {
+                    completionsThisWeek += 1
+                }
+            }
+            
+            // Handle current incomplete week - show current progress
+            let progressRatio = Double(completionsThisWeek) / Double(targetPerWeek)
+            let currentWeekBonus = min(progressRatio, 1.0) * gainRate * (maxStrength - strength) * 0.5
+            let displayStrength = strength + currentWeekBonus
+            
+            for day in weekStartDay...totalDays {
+                points.append(CurvePoint(day: day, strength: min(displayStrength, maxStrength)))
+            }
+        }
+        
+        return points
+    }
+    
+    /// Ideal curve showing what perfect consistency would look like
+    private func idealCurveDataPoints(maxDays: Int) -> [CurvePoint] {
+        stride(from: 0, through: maxDays, by: 1).map { day in
+            CurvePoint(day: day, strength: asymptoticStrength(day: day))
+        }
+    }
+    
+    /// Projects future strength if user continues current pattern
+    private func projectedStrengthPoints(from currentStrength: Double, startDay: Int, maxDays: Int) -> [CurvePoint] {
+        guard startDay < maxDays else { return [] }
+        
+        var points: [CurvePoint] = []
+        var strength = currentStrength
+        
+        if habit.frequency == .daily {
+            // Daily: project based on daily completion rate
+            let completionRate = habit.completionRate / 100.0
+            let gainRate: Double = 0.045
+            let baseDecayRate: Double = 0.08
+            
+            for day in startDay...maxDays {
+                let expectedGain = completionRate * gainRate * (1.0 - strength)
+                let expectedDecay = (1.0 - completionRate) * baseDecayRate * (1.0 - strength * 0.7)
+                strength = min(max(strength + expectedGain - expectedDecay, 0), 1.0)
+                points.append(CurvePoint(day: day, strength: strength))
+            }
+        } else {
+            // Weekly: project based on weekly success rate
+            let targetPerWeek = habit.targetPerWeek
+            let avgCompletionsPerWeek = habit.entries.isEmpty ? 0 : 
+                Double(habit.entries.filter { $0.completed }.count) / max(1, Double(daysSinceCreated) / 7.0)
+            let weeklySuccessRate = min(avgCompletionsPerWeek / Double(targetPerWeek), 1.0)
+            
+            let gainRate: Double = 0.12
+            let baseDecayRate: Double = 0.15
+            
+            var currentWeekInProjection = startDay / 7
+            
+            for day in startDay...maxDays {
+                let weekIndex = day / 7
+                
+                // Apply weekly change at week boundaries
+                if weekIndex > currentWeekInProjection {
+                    let expectedGain = weeklySuccessRate * gainRate * (1.0 - strength)
+                    let expectedDecay = (1.0 - weeklySuccessRate) * baseDecayRate * (1.0 - strength * 0.5)
+                    strength = min(max(strength + expectedGain - expectedDecay, 0), 1.0)
+                    currentWeekInProjection = weekIndex
+                }
+                
+                points.append(CurvePoint(day: day, strength: strength))
+            }
+        }
+        
+        return points
     }
     
     private var gridSection: some View {
@@ -273,6 +599,56 @@ struct HabitDetailView: View {
             }
             return (lhs.hour ?? 0) < (rhs.hour ?? 0)
         }
+    }
+
+    private var last7DaysCompletions: Int {
+        let calendar = Calendar.current
+        let end = DateService.shared.startOfEffectiveDay(for: DateService.now())
+        let start = calendar.date(byAdding: .day, value: -6, to: end) ?? end
+        return habit.entries.filter { entry in
+            guard entry.completed else { return false }
+            let entryDay = calendar.startOfDay(for: entry.date)
+            return entryDay >= start && entryDay <= end
+        }.count
+    }
+    
+    private var last7DaysExpected: Int {
+        habit.frequency == .daily ? 7 : habit.targetPerWeek
+    }
+    
+    private var last4WeeksCompletions: Int {
+        let calendar = Calendar.current
+        let end = DateService.shared.startOfEffectiveDay(for: DateService.now())
+        let start = calendar.date(byAdding: .day, value: -27, to: end) ?? end
+        return habit.entries.filter { entry in
+            guard entry.completed else { return false }
+            let entryDay = calendar.startOfDay(for: entry.date)
+            return entryDay >= start && entryDay <= end
+        }.count
+    }
+    
+    private var last4WeeksExpected: Int {
+        habit.frequency == .daily ? 28 : habit.targetPerWeek * 4
+    }
+
+    private var daysSinceCreated: Int {
+        let calendar = Calendar.current
+        let start = DateService.shared.startOfEffectiveDay(for: habit.createdAt)
+        let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
+        let days = calendar.dateComponents([.day], from: start, to: today).day ?? 0
+        return max(days, 0)
+    }
+
+    private let plateauDay: Int = 66
+
+    /// Ideal asymptotic curve (Mitscherlich's law) for reference
+    private func asymptoticStrength(day: Int) -> Double {
+        if day >= plateauDay {
+            return 1
+        }
+        let k = -log(1 - 0.95) / Double(plateauDay)
+        let value = 1 - exp(-k * Double(day))
+        return min(max(value, 0), 1)
     }
     
     private var recentActivitySection: some View {
