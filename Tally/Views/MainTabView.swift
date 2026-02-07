@@ -119,11 +119,11 @@ struct MainTabView: View {
         let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
         let startDate = calendar.date(byAdding: .day, value: -59, to: today) ?? today
 
-        let samples: [(name: String, icon: String, colorHex: String, frequency: HabitFrequency, target: Int)] = [
-            ("Hydrate", "drop.fill", "#4FC3F7", .daily, 7),
-            ("Workout", "figure.run", "#FF7043", .weekly, 4),
-            ("Read", "book.fill", "#BA68C8", .daily, 7),
-            ("Listen", "music.note", "#3F51B5", .weekly, 2)
+        let samples: [(name: String, icon: String, colorHex: String, frequency: HabitFrequency, target: Int, dailyTarget: Int)] = [
+            ("Hydrate", "drop.fill", "#4FC3F7", .daily, 7, 1),
+            ("Workout", "figure.run", "#FF7043", .weekly, 4, 1),
+            ("Read", "book.fill", "#BA68C8", .daily, 7, 1),
+            ("Listen", "music.note", "#3F51B5", .weekly, 2, 1)
         ]
 
         for (index, sample) in samples.enumerated() {
@@ -133,7 +133,8 @@ struct MainTabView: View {
                 colorHex: sample.colorHex,
                 reminderEnabled: false,
                 frequency: sample.frequency,
-                targetPerWeek: sample.target
+                targetPerWeek: sample.target,
+                dailyTarget: sample.dailyTarget
             )
             habit.createdAt = calendar.date(byAdding: .day, value: index, to: startDate) ?? startDate
             modelContext.insert(habit)
@@ -143,7 +144,8 @@ struct MainTabView: View {
                 let dayIndex = calendar.dateComponents([.day], from: startDate, to: date).day ?? 0
                 let shouldComplete = ((dayIndex + index) % 3) != 0
                 if shouldComplete {
-                    let entry = HabitEntry(date: date, completed: true)
+                    let dailyTarget = habit.frequency == .daily ? habit.dailyTarget : 1
+                    let entry = HabitEntry(date: date, completed: dailyTarget == 1, count: dailyTarget)
                     entry.habit = habit
                     habit.entries.append(entry)
                     modelContext.insert(entry)
@@ -159,14 +161,15 @@ struct MainTabView: View {
             colorHex: "#81C784",
             reminderEnabled: false,
             frequency: .daily,
-            targetPerWeek: 7
+            targetPerWeek: 7,
+            dailyTarget: 1
         )
         fullyCompletedHabit.createdAt = fullyCompletedStartDate
         modelContext.insert(fullyCompletedHabit)
 
         var completedDate = fullyCompletedStartDate
         while completedDate <= today {
-            let entry = HabitEntry(date: completedDate, completed: true)
+            let entry = HabitEntry(date: completedDate, completed: true, count: 1)
             entry.habit = fullyCompletedHabit
             fullyCompletedHabit.entries.append(entry)
             modelContext.insert(entry)
@@ -180,7 +183,8 @@ struct MainTabView: View {
             colorHex: "#FFB74D",
             reminderEnabled: false,
             frequency: .daily,
-            targetPerWeek: 7
+            targetPerWeek: 7,
+            dailyTarget: 1
         )
         alternateDayHabit.createdAt = alternateDayStartDate
         modelContext.insert(alternateDayHabit)
@@ -189,12 +193,36 @@ struct MainTabView: View {
         while alternateDate <= today {
             let dayIndex = calendar.dateComponents([.day], from: alternateDayStartDate, to: alternateDate).day ?? 0
             if dayIndex % 2 == 0 {
-                let entry = HabitEntry(date: alternateDate, completed: true)
+                let entry = HabitEntry(date: alternateDate, completed: true, count: 1)
                 entry.habit = alternateDayHabit
                 alternateDayHabit.entries.append(entry)
                 modelContext.insert(entry)
             }
             alternateDate = calendar.date(byAdding: .day, value: 1, to: alternateDate) ?? alternateDate
+        }
+
+        let twiceDailyStartDate = calendar.date(byAdding: .day, value: -14, to: today) ?? today
+        let twiceDailyHabit = Habit(
+            name: "Water 2x",
+            icon: "drop.triangle",
+            colorHex: "#29B6F6",
+            reminderEnabled: false,
+            frequency: .daily,
+            targetPerWeek: 7,
+            dailyTarget: 2
+        )
+        twiceDailyHabit.createdAt = twiceDailyStartDate
+        modelContext.insert(twiceDailyHabit)
+        
+        var twiceDate = twiceDailyStartDate
+        while twiceDate <= today {
+            let dayIndex = calendar.dateComponents([.day], from: twiceDailyStartDate, to: twiceDate).day ?? 0
+            let count = dayIndex % 3 == 0 ? 2 : 1
+            let entry = HabitEntry(date: twiceDate, completed: count >= 2, count: count)
+            entry.habit = twiceDailyHabit
+            twiceDailyHabit.entries.append(entry)
+            modelContext.insert(entry)
+            twiceDate = calendar.date(byAdding: .day, value: 1, to: twiceDate) ?? twiceDate
         }
 
         try? modelContext.save()

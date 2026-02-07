@@ -9,6 +9,7 @@ struct ExportableHabitEntry: Codable, Equatable {
     let id: String
     let date: Date
     let completed: Bool
+    let count: Int
 }
 
 struct ExportableHabit: Codable, Equatable {
@@ -19,6 +20,7 @@ struct ExportableHabit: Codable, Equatable {
     let createdAt: Date
     let frequency: String
     let targetPerWeek: Int
+    let dailyTarget: Int
     let reminderEnabled: Bool
     let reminderType: String
     let reminderTime: Date?
@@ -48,6 +50,7 @@ class ExportService {
             createdAt: habit.createdAt,
             frequency: habit.frequencyRaw,
             targetPerWeek: habit.targetPerWeek,
+            dailyTarget: habit.dailyTarget,
             reminderEnabled: habit.reminderEnabled,
             reminderType: habit.reminderTypeRaw,
             reminderTime: habit.reminderTime,
@@ -58,7 +61,8 @@ class ExportService {
                 ExportableHabitEntry(
                     id: entry.id.uuidString,
                     date: entry.date,
-                    completed: entry.completed
+                    completed: entry.completed,
+                    count: entry.count
                 )
             }
         )

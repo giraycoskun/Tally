@@ -116,9 +116,19 @@ struct HabitDetailView: View {
                 }
             } label: {
                 let isCompleted = habit.isCompletedOn(date: DateService.now())
+                let todayCount = habit.completionCount(on: DateService.now())
+                let targetToday = habit.frequency == .daily ? habit.dailyTarget : 1
                 HStack {
                     Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
-                    Text(isCompleted ? "Completed Today" : "Mark as Complete")
+                    if habit.frequency == .daily {
+                        if isCompleted {
+                            Text("Completed Today (\(min(todayCount, targetToday))/\(targetToday))")
+                        } else {
+                            Text("Complete \(min(todayCount, targetToday))/\(targetToday)")
+                        }
+                    } else {
+                        Text(isCompleted ? "Completed Today" : "Mark as Complete")
+                    }
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -186,7 +196,7 @@ struct HabitDetailView: View {
                 
                 StatCard(
                     title: "Total Completions",
-                    value: "\(habit.entries.filter { $0.completed }.count)",
+                    value: "\(habit.totalCompletions)",
                     icon: "checkmark.seal.fill",
                     color: .green
                 )
@@ -373,13 +383,13 @@ struct HabitDetailView: View {
             return [CurvePoint(day: 0, strength: 0)]
         }
         
-        // Build set of completed days (as day index from creation)
-        var completedDays = Set<Int>()
-        for entry in habit.entries where entry.completed {
+        // Build completion counts by day index from creation
+        var dailyCounts: [Int: Int] = [:]
+        for entry in habit.entries {
             let entryDay = calendar.startOfDay(for: entry.date)
             if let dayIndex = calendar.dateComponents([.day], from: creationDay, to: entryDay).day,
                dayIndex >= 0 {
-                completedDays.insert(dayIndex)
+                dailyCounts[dayIndex] = habit.entryCount(entry)
             }
         }
         
@@ -393,7 +403,9 @@ struct HabitDetailView: View {
             let baseDecayRate: Double = 0.08
             
             for day in 0...totalDays {
-                if completedDays.contains(day) {
+                let dailyTarget = max(habit.dailyTarget, 1)
+                let dayCount = dailyCounts[day] ?? 0
+                if dayCount >= dailyTarget {
                     let gain = gainRate * (maxStrength - strength)
                     strength = min(strength + gain, maxStrength)
                 } else if day > 0 {
@@ -442,8 +454,8 @@ struct HabitDetailView: View {
                     weekStartDay = day
                 }
                 
-                if completedDays.contains(day) {
-                    completionsThisWeek += 1
+                if let dayCount = dailyCounts[day], dayCount > 0 {
+                    completionsThisWeek += dayCount
                 }
             }
             
@@ -490,7 +502,7 @@ struct HabitDetailView: View {
             // Weekly: project based on weekly success rate
             let targetPerWeek = habit.targetPerWeek
             let avgCompletionsPerWeek = habit.entries.isEmpty ? 0 : 
-                Double(habit.entries.filter { $0.completed }.count) / max(1, Double(daysSinceCreated) / 7.0)
+                Double(habit.totalCompletions) / max(1, Double(daysSinceCreated) / 7.0)
             let weeklySuccessRate = min(avgCompletionsPerWeek / Double(targetPerWeek), 1.0)
             
             let gainRate: Double = 0.12
@@ -605,30 +617,22 @@ struct HabitDetailView: View {
         let calendar = Calendar.current
         let end = DateService.shared.startOfEffectiveDay(for: DateService.now())
         let start = calendar.date(byAdding: .day, value: -6, to: end) ?? end
-        return habit.entries.filter { entry in
-            guard entry.completed else { return false }
-            let entryDay = calendar.startOfDay(for: entry.date)
-            return entryDay >= start && entryDay <= end
-        }.count
+        return habit.completions(from: start, to: end)
     }
     
     private var last7DaysExpected: Int {
-        habit.frequency == .daily ? 7 : habit.targetPerWeek
+        habit.frequency == .daily ? max(habit.dailyTarget, 1) * 7 : habit.targetPerWeek
     }
     
     private var last4WeeksCompletions: Int {
         let calendar = Calendar.current
         let end = DateService.shared.startOfEffectiveDay(for: DateService.now())
         let start = calendar.date(byAdding: .day, value: -27, to: end) ?? end
-        return habit.entries.filter { entry in
-            guard entry.completed else { return false }
-            let entryDay = calendar.startOfDay(for: entry.date)
-            return entryDay >= start && entryDay <= end
-        }.count
+        return habit.completions(from: start, to: end)
     }
     
     private var last4WeeksExpected: Int {
-        habit.frequency == .daily ? 28 : habit.targetPerWeek * 4
+        habit.frequency == .daily ? max(habit.dailyTarget, 1) * 28 : habit.targetPerWeek * 4
     }
 
     private var daysSinceCreated: Int {
@@ -658,7 +662,7 @@ struct HabitDetailView: View {
                 .foregroundColor(.white)
             
             let recentEntries = habit.entries
-                .filter { $0.completed }
+                .filter { habit.isCompletedOn(date: $0.date) }
                 .sorted { $0.date > $1.date }
                 .prefix(6)
             let activityItems: [(date: Date, isCreation: Bool)] =

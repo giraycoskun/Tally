@@ -18,7 +18,7 @@ struct StatisticsView: View {
     
     private var totalCompletions: Int {
         let _ = daySwitchHour
-        return habits.flatMap { $0.entries }.filter { $0.completed }.count
+        return habits.reduce(0) { $0 + $1.totalCompletions }
     }
     
     private var averageCompletionRate: Double {
@@ -40,7 +40,7 @@ struct StatisticsView: View {
     private var totalWeeklyTarget: Int {
         let _ = daySwitchHour
         return habits.reduce(0) { total, habit in
-            total + (habit.frequency == .daily ? 7 : habit.targetPerWeek)
+            total + (habit.frequency == .daily ? max(habit.dailyTarget, 1) * 7 : habit.targetPerWeek)
         }
     }
 
@@ -76,11 +76,9 @@ struct StatisticsView: View {
         for weekOffset in 0..<4 {
             guard let weekStart = calendar.date(byAdding: .day, value: -7 * weekOffset, to: startOfThisWeek) else { continue }
             let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
-            let completions = habits.flatMap { $0.entries }.filter { entry in
-                guard entry.completed else { return false }
-                let entryDay = calendar.startOfDay(for: entry.date)
-                return entryDay >= weekStart && entryDay <= weekEnd
-            }.count
+            let completions = habits.reduce(0) { total, habit in
+                total + habit.completions(from: weekStart, to: weekEnd)
+            }
             ratios.append(Double(completions) / Double(totalWeeklyTarget))
         }
         guard !ratios.isEmpty else { return "4W Avg: --" }
@@ -247,7 +245,7 @@ struct StatisticsView: View {
         for dayOffset in (0..<7).reversed() {
             guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
             let weekdayIndex = calendar.component(.weekday, from: date) - 1
-            let completions = habits.filter { $0.isCompletedOn(date: date) }.count
+            let completions = habits.reduce(0) { $0 + $1.completionCount(on: date) }
             data.append((date: date, label: weekdays[weekdayIndex], count: completions))
         }
         
@@ -394,8 +392,8 @@ struct OverallActivityGrid: View {
     private func completionIntensity(for date: Date) -> Double {
         let _ = daySwitchHour
         guard !habits.isEmpty else { return 0 }
-        let completed = habits.filter { $0.isCompletedOn(date: date) }.count
-        return Double(completed) / Double(habits.count)
+        let totalProgress = habits.reduce(0.0) { $0 + $1.completionProgress(on: date) }
+        return totalProgress / Double(habits.count)
     }
     
     private func weeksToShow(for width: CGFloat) -> Int {

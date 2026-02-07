@@ -54,12 +54,7 @@ struct ContributionGridView: View {
         guard habit.frequency == .weekly, let weekStart = week.first, let weekEnd = week.last else {
             return false
         }
-        let calendar = Calendar.current
-        let completionsInWeek = habit.entries.filter { entry in
-            guard entry.completed else { return false }
-            let entryDay = calendar.startOfDay(for: entry.date)
-            return entryDay >= weekStart && entryDay <= weekEnd
-        }.count
+        let completionsInWeek = habit.completions(from: weekStart, to: weekEnd)
         return completionsInWeek >= habit.targetPerWeek
     }
     
@@ -81,6 +76,7 @@ struct ContributionGridView: View {
                         ForEach(week, id: \.self) { date in
                             ContributionCell(
                                 date: date,
+                                progress: habit.completionProgress(on: date),
                                 isCompleted: habit.isCompletedOn(date: date),
                                 color: habit.color,
                                 size: cellSize,
@@ -108,6 +104,7 @@ struct ContributionGridView: View {
 
 struct ContributionCell: View {
     let date: Date
+    let progress: Double
     let isCompleted: Bool
     let color: Color
     let size: CGFloat
@@ -159,6 +156,9 @@ struct ContributionCell: View {
             return AppTheme.surfaceBackground
         } else if isCompleted {
             return color
+        } else if progress > 0 {
+            let opacity = 0.2 + (0.6 * min(progress, 1.0))
+            return color.opacity(opacity)
         } else {
             return AppTheme.darkPurple
         }

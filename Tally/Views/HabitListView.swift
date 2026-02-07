@@ -316,6 +316,11 @@ struct HabitCardView: View {
         return habit.completionRate
     }
     
+    private var todayCount: Int {
+        let _ = daySwitchHour
+        return habit.completionCount(on: DateService.now())
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -350,6 +355,10 @@ struct HabitCardView: View {
                             Label("\(completionsThisWeek)/\(habit.targetPerWeek)", systemImage: "calendar.badge.checkmark")
                                 .font(.caption)
                                 .foregroundColor(isWeeklyGoalMet ? .green : theme.lightColor)
+                        } else if habit.dailyTarget > 1 {
+                            Label("\(todayCount)/\(habit.dailyTarget) today", systemImage: "calendar")
+                                .font(.caption)
+                                .foregroundColor(theme.lightColor)
                         } else {
                             Label("\(Int(completionRate))%", systemImage: "chart.pie.fill")
                                 .font(.caption)
@@ -421,6 +430,65 @@ struct EmptyHabitsView: View {
 }
 
 #Preview {
+    let container = makeHabitListPreviewContainer()
     HabitListView()
-        .modelContainer(for: [Habit.self, HabitEntry.self], inMemory: true)
+        .modelContainer(container)
+}
+
+private func makeHabitListPreviewContainer() -> ModelContainer {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: Habit.self, HabitEntry.self, configurations: config)
+    let context = container.mainContext
+    let calendar = Calendar.current
+    let today = DateService.shared.startOfEffectiveDay(for: DateService.now())
+    
+    let dailyTwice = Habit(
+        name: "Hydrate",
+        icon: "drop.fill",
+        colorHex: "#4FC3F7",
+        reminderEnabled: false,
+        frequency: .daily,
+        targetPerWeek: 7,
+        dailyTarget: 2
+    )
+    
+    let weeklyHabit = Habit(
+        name: "Workout",
+        icon: "figure.run",
+        colorHex: "#FF7043",
+        reminderEnabled: false,
+        frequency: .weekly,
+        targetPerWeek: 4
+    )
+    
+    let dailyOnce = Habit(
+        name: "Read",
+        icon: "book.fill",
+        colorHex: "#BA68C8",
+        reminderEnabled: false,
+        frequency: .daily,
+        targetPerWeek: 7,
+        dailyTarget: 1
+    )
+    
+    [dailyTwice, weeklyHabit, dailyOnce].forEach { context.insert($0) }
+    
+    let dailyEntry = HabitEntry(date: today, completed: true, count: 1)
+    dailyEntry.habit = dailyTwice
+    dailyTwice.entries.append(dailyEntry)
+    context.insert(dailyEntry)
+    
+    let dailyEntry2 = HabitEntry(date: today, completed: true, count: 2)
+    dailyEntry2.habit = dailyOnce
+    dailyOnce.entries.append(dailyEntry2)
+    context.insert(dailyEntry2)
+    
+    if let yesterday = calendar.date(byAdding: .day, value: -1, to: today) {
+        let weeklyEntry = HabitEntry(date: yesterday, completed: true, count: 1)
+        weeklyEntry.habit = weeklyHabit
+        weeklyHabit.entries.append(weeklyEntry)
+        context.insert(weeklyEntry)
+    }
+    
+    return container
 }

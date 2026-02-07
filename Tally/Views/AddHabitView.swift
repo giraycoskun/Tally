@@ -15,6 +15,7 @@ struct AddHabitView: View {
     @State private var selectedColor = "#4CAF50"
     @State private var frequency: HabitFrequency = .daily
     @State private var targetPerWeek = 3
+    @State private var dailyTarget = 1
     @State private var reminderEnabled = false
     @State private var reminderType: ReminderType = .single
     @State private var reminderTimes: [Date] = [Date()]
@@ -57,6 +58,8 @@ struct AddHabitView: View {
                     
                     if frequency == .weekly {
                         Stepper("\(targetPerWeek) times per week", value: $targetPerWeek, in: 1...6)
+                    } else {
+                        Stepper("\(dailyTarget) time\(dailyTarget > 1 ? "s" : "") per day", value: $dailyTarget, in: 1...12)
                     }
                 }
                 
@@ -197,9 +200,15 @@ struct AddHabitView: View {
                     .font(.headline)
                     .foregroundColor(name.isEmpty ? .secondary : .primary)
                 
-                Text(frequency == .daily ? "Daily" : "\(targetPerWeek)x per week")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if frequency == .daily {
+                    Text(dailyTarget == 1 ? "Daily" : "\(dailyTarget)x per day")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("\(targetPerWeek)x per week")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 
                 if reminderEnabled {
                     if reminderType == .single {
@@ -230,7 +239,8 @@ struct AddHabitView: View {
             reminderTimes: reminderEnabled && reminderType == .single ? sortedReminderTimes(reminderTimes) : [],
             reminderEnabled: reminderEnabled,
             frequency: frequency,
-            targetPerWeek: frequency == .daily ? 7 : targetPerWeek,
+            targetPerWeek: frequency == .weekly ? targetPerWeek : 7,
+            dailyTarget: frequency == .daily ? max(dailyTarget, 1) : 1,
             reminderType: reminderType,
             periodicStartTime: reminderEnabled && reminderType == .periodic ? periodicStartTime : nil,
             periodicEndTime: reminderEnabled && reminderType == .periodic ? periodicEndTime : nil,

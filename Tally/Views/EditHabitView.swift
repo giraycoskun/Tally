@@ -15,6 +15,7 @@ struct EditHabitView: View {
     @State private var selectedColor: String
     @State private var frequency: HabitFrequency
     @State private var targetPerWeek: Int
+    @State private var dailyTarget: Int
     @State private var reminderEnabled: Bool
     @State private var reminderType: ReminderType
     @State private var reminderTimes: [Date]
@@ -43,6 +44,7 @@ struct EditHabitView: View {
         _selectedColor = State(initialValue: habit.colorHex)
         _frequency = State(initialValue: habit.frequency)
         _targetPerWeek = State(initialValue: habit.targetPerWeek)
+        _dailyTarget = State(initialValue: habit.dailyTarget)
         _reminderEnabled = State(initialValue: habit.reminderEnabled)
         _reminderType = State(initialValue: habit.reminderType)
         if !habit.reminderTimes.isEmpty {
@@ -78,6 +80,8 @@ struct EditHabitView: View {
                     
                     if frequency == .weekly {
                         Stepper("\(targetPerWeek) times per week", value: $targetPerWeek, in: 1...6)
+                    } else {
+                        Stepper("\(dailyTarget) time\(dailyTarget > 1 ? "s" : "") per day", value: $dailyTarget, in: 1...12)
                     }
                 }
                 
@@ -205,7 +209,8 @@ struct EditHabitView: View {
         habit.icon = selectedIcon
         habit.colorHex = selectedColor
         habit.frequency = frequency
-        habit.targetPerWeek = frequency == .daily ? 7 : targetPerWeek
+        habit.targetPerWeek = frequency == .weekly ? targetPerWeek : 7
+        habit.dailyTarget = frequency == .daily ? max(dailyTarget, 1) : 1
         habit.reminderEnabled = reminderEnabled
         habit.reminderType = reminderType
         habit.reminderTime = nil
