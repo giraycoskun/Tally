@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.0] - 2026-02-06
+### Added
+- Multiple per Day option for Habits.
+- Unit and UI Tests are added to the project.
+
 ## [1.1.0] - 2026-02-06
 ### Added
 - Alstore Source Files are added to the project.
