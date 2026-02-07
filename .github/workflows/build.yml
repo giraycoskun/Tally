@@ -30,9 +30,28 @@ jobs:
         if: hashFiles('Package.swift') != ''
         run: swift package resolve
 
+      - name: Get version info
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION_TAG=${GITHUB_REF#refs/tags/}
+          else
+            VERSION_TAG=$(date +%Y%m%d-%H%M%S)
+          fi
+
+          if [[ "$VERSION_TAG" == v* ]]; then
+            VERSION=${VERSION_TAG#v}
+          else
+            VERSION=$VERSION_TAG
+          fi
+
+          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Build app without code signing
         env:
           SCHEME_NAME: Tally # Replace with your actual scheme name
+          MARKETING_VERSION: ${{ steps.version.outputs.version }}
         run: |
           # Build the app without signing
           xcodebuild clean build \
@@ -41,6 +60,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath $RUNNER_TEMP/app.xcarchive \
             archive \
+            MARKETING_VERSION="$MARKETING_VERSION" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
@@ -61,24 +81,14 @@ jobs:
           # Verify IPA was created
           ls -lh Tally.ipa
 
-      - name: Get version info
-        id: version
-        run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-          else
-            VERSION=$(date +%Y%m%d-%H%M%S)
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: Release ${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.version.outputs.version_tag }}
+          name: Release ${{ steps.version.outputs.version_tag }}
           body: |
             ## 📱 Tally IPA for AltStore
 
@@ -122,7 +132,7 @@ jobs:
 
       - name: Update Altstore.json
         env:
-          VERSION_TAG: ${{ steps.version.outputs.version }}
+          VERSION_TAG: ${{ steps.version.outputs.version_tag }}
           REPO: ${{ github.repository }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
