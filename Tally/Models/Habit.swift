@@ -41,6 +41,7 @@ final class Habit {
     var frequencyRaw: String
     var targetPerWeek: Int
     var dailyTarget: Int
+    var sortOrder: Int
     
     // Periodic reminder properties
     var reminderTypeRaw: String
@@ -71,6 +72,7 @@ final class Habit {
         frequency: HabitFrequency = .daily,
         targetPerWeek: Int = 7,
         dailyTarget: Int = 1,
+        sortOrder: Int = 0,
         reminderType: ReminderType = .single,
         periodicStartTime: Date? = nil,
         periodicEndTime: Date? = nil,
@@ -87,6 +89,7 @@ final class Habit {
         self.frequencyRaw = frequency.rawValue
         self.targetPerWeek = frequency == .daily ? 7 : targetPerWeek
         self.dailyTarget = max(dailyTarget, 1)
+        self.sortOrder = sortOrder
         self.reminderTypeRaw = reminderType.rawValue
         self.periodicStartTime = periodicStartTime
         self.periodicEndTime = periodicEndTime

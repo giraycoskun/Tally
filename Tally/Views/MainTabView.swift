@@ -126,6 +126,7 @@ struct MainTabView: View {
             ("Listen", "music.note", "#3F51B5", .weekly, 2, 1)
         ]
 
+        var sortOrder = 0
         for (index, sample) in samples.enumerated() {
             let habit = Habit(
                 name: sample.name,
@@ -134,8 +135,10 @@ struct MainTabView: View {
                 reminderEnabled: false,
                 frequency: sample.frequency,
                 targetPerWeek: sample.target,
-                dailyTarget: sample.dailyTarget
+                dailyTarget: sample.dailyTarget,
+                sortOrder: sortOrder
             )
+            sortOrder += 1
             habit.createdAt = calendar.date(byAdding: .day, value: index, to: startDate) ?? startDate
             modelContext.insert(habit)
 
@@ -162,8 +165,10 @@ struct MainTabView: View {
             reminderEnabled: false,
             frequency: .daily,
             targetPerWeek: 7,
-            dailyTarget: 1
+            dailyTarget: 1,
+            sortOrder: sortOrder
         )
+        sortOrder += 1
         fullyCompletedHabit.createdAt = fullyCompletedStartDate
         modelContext.insert(fullyCompletedHabit)
 
@@ -184,8 +189,10 @@ struct MainTabView: View {
             reminderEnabled: false,
             frequency: .daily,
             targetPerWeek: 7,
-            dailyTarget: 1
+            dailyTarget: 1,
+            sortOrder: sortOrder
         )
+        sortOrder += 1
         alternateDayHabit.createdAt = alternateDayStartDate
         modelContext.insert(alternateDayHabit)
 
@@ -209,7 +216,8 @@ struct MainTabView: View {
             reminderEnabled: false,
             frequency: .daily,
             targetPerWeek: 7,
-            dailyTarget: 2
+            dailyTarget: 2,
+            sortOrder: sortOrder
         )
         twiceDailyHabit.createdAt = twiceDailyStartDate
         modelContext.insert(twiceDailyHabit)

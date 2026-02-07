@@ -5,11 +5,14 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct HabitListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Habit.createdAt) private var habits: [Habit]
+    @Query(sort: \Habit.sortOrder) private var habits: [Habit]
     @State private var showingAddHabit = false
+    @State private var orderedHabits: [Habit] = []
+    @State private var draggedHabit: Habit?
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
     @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     
@@ -52,6 +55,14 @@ struct HabitListView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            syncOrderedHabits()
+            ensureInitialSortOrder()
+        }
+        .onChange(of: habits.map(\.id)) { _, _ in
+            syncOrderedHabits()
+            ensureInitialSortOrder()
+        }
     }
     
     private var habitList: some View {
@@ -60,15 +71,79 @@ struct HabitListView: View {
                 Last7DaysSection(habits: habits)
                 TodaySection(habits: habits)
                 
-                ForEach(habits) { habit in
+                ForEach(orderedHabits) { habit in
                     NavigationLink(destination: HabitDetailView(habit: habit)) {
                         HabitCardView(habit: habit)
                     }
                     .buttonStyle(.plain)
+                    .onDrag {
+                        draggedHabit = habit
+                        return NSItemProvider(object: habit.id.uuidString as NSString)
+                    }
+                    .onDrop(of: [.text], delegate: HabitDropDelegate(
+                        item: habit,
+                        items: $orderedHabits,
+                        draggedItem: $draggedHabit,
+                        onMove: persistSortOrder
+                    ))
                 }
             }
             .padding()
         }
+    }
+    
+    private func syncOrderedHabits() {
+        orderedHabits = habits.sorted { $0.sortOrder < $1.sortOrder }
+    }
+    
+    private func ensureInitialSortOrder() {
+        guard !habits.isEmpty else { return }
+        let uniqueOrderCount = Set(habits.map(\.sortOrder)).count
+        if uniqueOrderCount <= 1 {
+            let sortedByCreatedAt = habits.sorted { $0.createdAt < $1.createdAt }
+            for (index, habit) in sortedByCreatedAt.enumerated() {
+                habit.sortOrder = index
+            }
+            try? modelContext.save()
+            orderedHabits = sortedByCreatedAt
+        }
+    }
+    
+    private func persistSortOrder(_ items: [Habit]) {
+        for (index, habit) in items.enumerated() {
+            habit.sortOrder = index
+        }
+        try? modelContext.save()
+    }
+}
+
+private struct HabitDropDelegate: DropDelegate {
+    let item: Habit
+    @Binding var items: [Habit]
+    @Binding var draggedItem: Habit?
+    let onMove: ([Habit]) -> Void
+    
+    func dropEntered(info: DropInfo) {
+        guard let draggedItem,
+              draggedItem.id != item.id,
+              let fromIndex = items.firstIndex(where: { $0.id == draggedItem.id }),
+              let toIndex = items.firstIndex(where: { $0.id == item.id }) else {
+            return
+        }
+        
+        withAnimation {
+            items.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+        }
+    }
+    
+    func performDrop(info: DropInfo) -> Bool {
+        onMove(items)
+        draggedItem = nil
+        return true
+    }
+    
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
     }
 }
 

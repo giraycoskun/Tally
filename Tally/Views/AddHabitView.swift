@@ -231,6 +231,10 @@ struct AddHabitView: View {
     }
     
     private func saveHabit() {
+        let descriptor = FetchDescriptor<Habit>(sortBy: [SortDescriptor(\.sortOrder, order: .reverse)])
+        let maxSortOrder = (try? modelContext.fetch(descriptor).first?.sortOrder) ?? -1
+        let nextSortOrder = maxSortOrder + 1
+        
         let habit = Habit(
             name: name,
             icon: selectedIcon,
@@ -241,6 +245,7 @@ struct AddHabitView: View {
             frequency: frequency,
             targetPerWeek: frequency == .weekly ? targetPerWeek : 7,
             dailyTarget: frequency == .daily ? max(dailyTarget, 1) : 1,
+            sortOrder: nextSortOrder,
             reminderType: reminderType,
             periodicStartTime: reminderEnabled && reminderType == .periodic ? periodicStartTime : nil,
             periodicEndTime: reminderEnabled && reminderType == .periodic ? periodicEndTime : nil,

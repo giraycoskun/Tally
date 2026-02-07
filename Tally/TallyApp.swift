@@ -20,30 +20,13 @@ struct TallyApp: App {
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(
+                for: schema,
+                migrationPlan: TallyMigrationPlan.self,
+                configurations: [modelConfiguration]
+            )
         } catch {
-            // If migration fails, delete the old store files and create fresh
-            let fileManager = FileManager.default
-            let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            
-            let storeFiles = [
-                "default.store",
-                "default.store-shm",
-                "default.store-wal"
-            ]
-            
-            for file in storeFiles {
-                let url = appSupport.appendingPathComponent(file)
-                if fileManager.fileExists(atPath: url.path) {
-                    try? fileManager.removeItem(at: url)
-                }
-            }
-            
-            do {
-                return try ModelContainer(for: schema, configurations: [modelConfiguration])
-            } catch {
-                fatalError("Could not create ModelContainer: \(error)")
-            }
+            fatalError("Could not create ModelContainer: \(error)")
         }
     }()
 
