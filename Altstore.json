@@ -23,6 +23,13 @@
       ],
       "versions": [
         {
+          "downloadURL": "https://github.com/giraycoskun/Tally/releases/download/v.1.1.2/Tally.ipa",
+          "size": 4266913,
+          "version": ".1.1.2",
+          "date": "2026-02-07T11:27:15Z",
+          "localizedDescription": "automated release for version: .1.1.2"
+        },
+        {
           "downloadURL": "https://github.com/giraycoskun/Tally/releases/download/v1.1.1/Tally.ipa",
           "size": 4266913,
           "version": "1.1.1",
