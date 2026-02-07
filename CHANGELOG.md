@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.3.0] - 2026-02-07
+- Added sort order for Habit views.
+- Add migratino plan for habit data.
+    
 ## [1.2.0] - 2026-02-06
 ### Added
 - Multiple per Day option for Habits.
