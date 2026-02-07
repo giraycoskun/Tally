@@ -13,6 +13,9 @@ struct SettingsView: View {
     @AppStorage("selectedTheme") private var selectedThemeRaw: String = ThemeColor.purple.rawValue
     @AppStorage("daySwitchHour") private var daySwitchHour: Int = 0
     @State private var showingResetAlert = false
+    @State private var exportItem: ExportItem?
+    @State private var exportError: String?
+    @State private var showingExportError = false
     
     private var selectedTheme: ThemeColor {
         ThemeColor(rawValue: selectedThemeRaw) ?? .purple
@@ -28,6 +31,7 @@ struct SettingsView: View {
                     appearanceSection
                     dayBoundarySection
                     notificationsSection
+                    dataSection
                     aboutSection
                     feedbackSection
                     resetSection
@@ -48,6 +52,14 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("This will permanently delete all habits and their history. This action cannot be undone.")
+            }
+            .sheet(item: $exportItem) { item in
+                ShareSheet(activityItems: [item.url])
+            }
+            .alert("Export Failed", isPresented: $showingExportError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(exportError ?? "An unknown error occurred.")
             }
         }
         .preferredColorScheme(.dark)
@@ -119,6 +131,22 @@ struct SettingsView: View {
         }
     }
     
+    private var dataSection: some View {
+        Section("Data") {
+            Button {
+                do {
+                    let url = try ExportService.shared.generateExportURL(habits: habits)
+                    exportItem = ExportItem(url: url)
+                } catch {
+                    exportError = error.localizedDescription
+                    showingExportError = true
+                }
+            } label: {
+                Label("Export as JSON", systemImage: "square.and.arrow.up")
+            }
+        }
+    }
+    
     private var aboutSection: some View {
         Section("About") {
             HStack {
@@ -166,6 +194,21 @@ struct SettingsView: View {
             }
         }
     }
+}
+
+struct ExportItem: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {
