@@ -164,7 +164,7 @@ struct TodaySection: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading) {
                     Text("Today")
@@ -187,6 +187,7 @@ struct TodaySection: View {
                         QuickCompleteButton(habit: habit)
                     }
                 }
+                .padding(.top, 2)
             }
         }
         .padding()
@@ -326,6 +327,31 @@ struct QuickCompleteButton: View {
         let _ = daySwitchHour
         return habit.isCompletedOn(date: DateService.now())
     }
+
+    private var todayProgress: Double {
+        let _ = daySwitchHour
+        return habit.completionProgress(on: DateService.now())
+    }
+
+    private var clampedTodayProgress: Double {
+        min(max(todayProgress, 0), 1)
+    }
+
+    private var quickButtonBaseGradient: LinearGradient {
+        return LinearGradient(
+            colors: [theme.mediumColor, theme.cardBackground],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var quickButtonProgressGradient: LinearGradient {
+        LinearGradient(
+            colors: [habit.color, habit.color.opacity(0.7)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
     
     var body: some View {
         Button {
@@ -338,7 +364,16 @@ struct QuickCompleteButton: View {
             VStack(spacing: 4) {
                 ZStack {
                     Circle()
-                        .fill(isCompletedToday ? habit.color : theme.cardBackground)
+                        .fill(quickButtonBaseGradient)
+                        .overlay(
+                            Circle()
+                                .fill(quickButtonProgressGradient)
+                                .opacity(clampedTodayProgress)
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(isCompletedToday ? .green : .clear, lineWidth: isCompletedToday ? 2.5 : 0)
+                        )
                         .frame(width: 50, height: 50)
                     
                     Image(systemName: habit.icon)
@@ -352,7 +387,7 @@ struct QuickCompleteButton: View {
                     .multilineTextAlignment(.center)
                     .foregroundColor(.white)
             }
-            .frame(width: 70, alignment: .top)
+            .frame(width: 70, height: 74, alignment: .top)
         }
     }
 }
@@ -395,6 +430,31 @@ struct HabitCardView: View {
     private var todayCount: Int {
         let _ = daySwitchHour
         return habit.completionCount(on: DateService.now())
+    }
+
+    private var todayProgress: Double {
+        let _ = daySwitchHour
+        return habit.completionProgress(on: DateService.now())
+    }
+
+    private var clampedTodayProgress: Double {
+        min(max(todayProgress, 0), 1)
+    }
+
+    private var completionButtonBaseGradient: LinearGradient {
+        return LinearGradient(
+            colors: [theme.mediumColor, theme.cardBackground],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var completionButtonProgressGradient: LinearGradient {
+        LinearGradient(
+            colors: [habit.color, habit.color.opacity(0.7)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
     
     var body: some View {
@@ -452,9 +512,24 @@ struct HabitCardView: View {
                         NotificationService.shared.syncReminderState(for: habit)
                     }
                 } label: {
-                    Image(systemName: isCompletedToday ? "checkmark.circle.fill" : "circle")
-                        .font(.title)
-                        .foregroundColor(isCompletedToday ? habit.color : theme.lightColor)
+                    ZStack {
+                        Circle()
+                            .fill(completionButtonBaseGradient)
+                            .overlay(
+                                Circle()
+                                    .fill(completionButtonProgressGradient)
+                                    .opacity(clampedTodayProgress)
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(isCompletedToday ? .green : .clear, lineWidth: isCompletedToday ? 2.5 : 0)
+                            )
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: isCompletedToday ? "checkmark" : "plus")
+                            .font(.headline.weight(.bold))
+                            .foregroundColor(.white)
+                    }
                 }
             }
             
