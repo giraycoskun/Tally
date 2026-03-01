@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+## [1.3.1] - 2026-03-01
+- Add JSON export and import for Habits.
+- Update UI  on Today and Hbait views.
+
 ## [1.3.0] - 2026-02-07
 - Added sort order for Habit views.
 - Add migratino plan for habit data.
