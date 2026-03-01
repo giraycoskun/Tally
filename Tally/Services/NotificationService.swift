@@ -28,12 +28,25 @@ class NotificationService {
         guard habit.reminderEnabled else { return }
         
         cancelReminder(for: habit)
+
+        if habit.isCompletedOn(date: DateService.now()) {
+            return
+        }
         
         if habit.reminderType == .periodic {
             schedulePeriodicReminders(for: habit)
         } else {
             scheduleSingleReminders(for: habit)
         }
+    }
+
+    func syncReminderState(for habit: Habit) {
+        guard habit.reminderEnabled else {
+            cancelReminder(for: habit)
+            return
+        }
+
+        scheduleReminder(for: habit)
     }
     
     private func scheduleSingleReminders(for habit: Habit) {

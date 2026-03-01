@@ -332,6 +332,7 @@ struct QuickCompleteButton: View {
             withAnimation(.spring(response: 0.3)) {
                 habit.toggleCompletion(for: DateService.now(), context: modelContext)
                 try? modelContext.save()
+                NotificationService.shared.syncReminderState(for: habit)
             }
         } label: {
             VStack(spacing: 4) {
@@ -351,7 +352,7 @@ struct QuickCompleteButton: View {
                     .multilineTextAlignment(.center)
                     .foregroundColor(.white)
             }
-            .frame(width: 70)
+            .frame(width: 70, alignment: .top)
         }
     }
 }
@@ -448,6 +449,7 @@ struct HabitCardView: View {
                     withAnimation {
                         habit.toggleCompletion(for: DateService.now(), context: modelContext)
                         try? modelContext.save()
+                        NotificationService.shared.syncReminderState(for: habit)
                     }
                 } label: {
                     Image(systemName: isCompletedToday ? "checkmark.circle.fill" : "circle")

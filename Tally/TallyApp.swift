@@ -22,7 +22,6 @@ struct TallyApp: App {
         do {
             return try ModelContainer(
                 for: schema,
-                migrationPlan: TallyMigrationPlan.self,
                 configurations: [modelConfiguration]
             )
         } catch {
@@ -38,6 +37,7 @@ struct TallyApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 clearNotifications()
+                refreshScheduledReminders()
             }
         }
     }
@@ -46,5 +46,16 @@ struct TallyApp: App {
         let center = UNUserNotificationCenter.current()
         center.removeAllDeliveredNotifications()
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
+    }
+
+    private func refreshScheduledReminders() {
+        let context = sharedModelContainer.mainContext
+        let descriptor = FetchDescriptor<Habit>()
+
+        guard let habits = try? context.fetch(descriptor) else {
+            return
+        }
+
+        NotificationService.shared.scheduleSmartReminders(for: habits)
     }
 }

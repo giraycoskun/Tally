@@ -113,6 +113,7 @@ struct HabitDetailView: View {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                     habit.toggleCompletion(for: DateService.now(), context: modelContext)
                     try? modelContext.save()
+                    NotificationService.shared.syncReminderState(for: habit)
                 }
             } label: {
                 let isCompleted = habit.isCompletedOn(date: DateService.now())
@@ -540,6 +541,10 @@ struct HabitDetailView: View {
                     withAnimation {
                         habit.toggleCompletion(for: date, context: modelContext)
                         try? modelContext.save()
+                        let selectedDay = DateService.shared.startOfEffectiveDay(for: date)
+                        if selectedDay == today {
+                            NotificationService.shared.syncReminderState(for: habit)
+                        }
                     }
                 }
             }

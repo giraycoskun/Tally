@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -16,6 +17,11 @@ struct SettingsView: View {
     @State private var exportItem: ExportItem?
     @State private var exportError: String?
     @State private var showingExportError = false
+    @State private var showingImportPicker = false
+    @State private var showingImportConfirm = false
+    @State private var importError: String?
+    @State private var showingImportError = false
+    @State private var pendingImport: ExportData?
     
     private var selectedTheme: ThemeColor {
         ThemeColor(rawValue: selectedThemeRaw) ?? .purple
@@ -60,6 +66,46 @@ struct SettingsView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(exportError ?? "An unknown error occurred.")
+            }
+            .alert("Import Data?", isPresented: $showingImportConfirm) {
+                Button("Cancel", role: .cancel) {
+                    pendingImport = nil
+                }
+                Button("Import", role: .destructive) {
+                    if let pendingImport {
+                        importData(pendingImport)
+                        self.pendingImport = nil
+                    }
+                }
+            } message: {
+                Text("Importing will merge with existing habits and history. Existing items with the same ID will be updated.")
+            }
+            .alert("Import Failed", isPresented: $showingImportError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(importError ?? "An unknown error occurred.")
+            }
+            .fileImporter(
+                isPresented: $showingImportPicker,
+                allowedContentTypes: [.json],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    do {
+                        let data = try Data(contentsOf: url)
+                        let exportData = try ExportService.shared.decodeFromJSON(data: data)
+                        pendingImport = exportData
+                        showingImportConfirm = true
+                    } catch {
+                        importError = error.localizedDescription
+                        showingImportError = true
+                    }
+                case .failure(let error):
+                    importError = error.localizedDescription
+                    showingImportError = true
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -144,7 +190,101 @@ struct SettingsView: View {
             } label: {
                 Label("Export as JSON", systemImage: "square.and.arrow.up")
             }
+            
+            Button {
+                showingImportPicker = true
+            } label: {
+                Label("Import from JSON", systemImage: "square.and.arrow.down")
+            }
         }
+    }
+    
+    private func importData(_ exportData: ExportData) {
+        var habitsById: [UUID: Habit] = [:]
+        habits.forEach { habit in
+            habitsById[habit.id] = habit
+        }
+        
+        let currentMaxSortOrder = habits.map(\.sortOrder).max() ?? -1
+        var nextSortOrder = currentMaxSortOrder + 1
+        
+        for exportHabit in exportData.habits {
+            let habitId = UUID(uuidString: exportHabit.id)
+            let frequency = HabitFrequency(rawValue: exportHabit.frequency) ?? .daily
+            let reminderType = ReminderType(rawValue: exportHabit.reminderType) ?? .single
+            
+            let habit: Habit
+            if let habitId, let existing = habitsById[habitId] {
+                habit = existing
+            } else {
+                habit = Habit(
+                    name: exportHabit.name,
+                    icon: exportHabit.icon,
+                    colorHex: exportHabit.colorHex,
+                    reminderTime: exportHabit.reminderTime,
+                    reminderTimes: exportHabit.reminderTimes,
+                    reminderEnabled: exportHabit.reminderEnabled,
+                    frequency: frequency,
+                    targetPerWeek: exportHabit.targetPerWeek,
+                    dailyTarget: exportHabit.dailyTarget,
+                    sortOrder: exportHabit.sortOrder > 0 ? exportHabit.sortOrder : nextSortOrder,
+                    reminderType: reminderType,
+                    periodicStartTime: exportHabit.periodicStartTime,
+                    periodicEndTime: exportHabit.periodicEndTime,
+                    periodicIntervalHours: exportHabit.periodicIntervalHours
+                )
+                
+                habit.id = habitId ?? UUID()
+                habit.createdAt = exportHabit.createdAt
+                modelContext.insert(habit)
+                habitsById[habit.id] = habit
+                nextSortOrder += 1
+            }
+            
+            habit.name = exportHabit.name
+            habit.icon = exportHabit.icon
+            habit.colorHex = exportHabit.colorHex
+            habit.reminderTime = exportHabit.reminderTime
+            habit.reminderTimes = exportHabit.reminderTimes
+            habit.reminderEnabled = exportHabit.reminderEnabled
+            habit.frequency = frequency
+            habit.targetPerWeek = exportHabit.targetPerWeek
+            habit.dailyTarget = exportHabit.dailyTarget
+            habit.reminderType = reminderType
+            habit.periodicStartTime = exportHabit.periodicStartTime
+            habit.periodicEndTime = exportHabit.periodicEndTime
+            habit.periodicIntervalHours = exportHabit.periodicIntervalHours
+            habit.createdAt = exportHabit.createdAt
+            if exportHabit.sortOrder > 0 {
+                habit.sortOrder = exportHabit.sortOrder
+            }
+            
+            var entriesById: [UUID: HabitEntry] = [:]
+            habit.entries.forEach { entry in
+                entriesById[entry.id] = entry
+            }
+            
+            for entry in exportHabit.entries {
+                let entryId = UUID(uuidString: entry.id)
+                if let entryId, let existingEntry = entriesById[entryId] {
+                    existingEntry.date = entry.date
+                    existingEntry.completed = entry.completed
+                    existingEntry.count = entry.count
+                } else {
+                    let habitEntry = HabitEntry(
+                        date: entry.date,
+                        completed: entry.completed,
+                        count: entry.count
+                    )
+                    habitEntry.id = entryId ?? UUID()
+                    habitEntry.habit = habit
+                    habit.entries.append(habitEntry)
+                    modelContext.insert(habitEntry)
+                }
+            }
+        }
+        
+        try? modelContext.save()
     }
     
     private var aboutSection: some View {
